@@ -1,0 +1,79 @@
+UI
+______________________________________________________________________________________
+
+If you want a clean install for the shop → delete electron/billing.db before running npm run package, so it starts fresh
+If you want to keep your dev data → leave it as is, it carries over
+After installation, all new data is saved to AppData\Roaming\POS Billing\billing.db — the original in electron/ is never touched again
+
+Do you want a clean DB for the shop or carry over your dev data?
+________________________________________________________________________
+
+Client-Server POS Architecture:
+
+--> Backup (import / export)
+
+Activation duration (free trial limit)
+
+print layout according to different requirements. (check)
+
+Add:
+
+Loyalty-based offers
+Coupon codes
+
+Membership tiers --> NI
+Payment QR code in invoice --> I
+Expense Tracking
+Multi-user login & permissions
+WhatsApp/SMS invoice sharing
+____________________________
+
+SERVER PC SETUP (one time)
+Step 1: Install the app
+
+Copy release/POS Billing Setup 0.0.0.exe to the server PC via USB or shared folder
+Double-click → Install → choose installation directory → Finish
+App icon appears on desktop
+
+Step 2: First launch
+
+Double-click the desktop icon
+App opens automatically — no terminal, no manual steps needed
+Login with admin / admin123 → immediately change the password
+
+Step 3: Check local IP
+
+Open Command Prompt → type ipconfig
+Note the WiFi IPv4 Address (e.g. 192.168.0.127)
+This IP must be given to counter PC staff
+
+Step 4: Configure Windows Firewall
+
+Windows may block counter PCs from connecting
+Open Windows Defender Firewall → Advanced Settings → Inbound Rules → New Rule
+Rule type: Port → TCP → port 3001 → Allow → save as "POS Server"
+
+
+COUNTER PC SETUP (one time per counter)
+Step 1: Connect to same WiFi
+
+Make sure the counter PC is on the same WiFi/LAN as the server PC
+
+Step 2: Enable PWA install in Chrome
+
+Open Chrome → go to:
+
+chrome://flags/#unsafely-treat-insecure-origin-as-secure
+
+Add http://192.168.0.127:3001 → Enable → Relaunch
+
+Step 3: Install the PWA
+
+Open Chrome → go to http://192.168.0.127:3001
+Click the install icon (⊕) in address bar → Install
+App saves as desktop icon
+
+Step 4: Launch
+
+Double-click the desktop icon
+Logs in and works like a native app — no browser UI
