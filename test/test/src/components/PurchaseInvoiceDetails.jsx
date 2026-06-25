@@ -343,70 +343,206 @@ function PurchaseInvoiceDetails({ invoiceId, onBack }) {
       </div>
 
       {/* ── PAYMENT MODAL ── */}
-      {showPaymentModal && (
-        <div onClick={() => setShowPaymentModal(false)} style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-          display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000
-        }}>
-          <div onClick={(e) => e.stopPropagation()} style={{
-            width: "380px", background: "#fff", borderRadius: "12px",
-            padding: "20px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
-          }}>
-            <h3 style={{ marginBottom: "15px" }}>Add Payment</h3>
-
-            <label>Amount</label>
-            <input type="number" value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              placeholder="Enter amount"
-              style={{ width: "100%", padding: "10px", marginTop: "5px", marginBottom: "12px", borderRadius: "6px", border: "1px solid #ddd", boxSizing: "border-box" }}
-            />
-
-            <label>Payment Mode</label>
-            <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}
-              style={{ width: "100%", padding: "10px", marginTop: "5px", marginBottom: "12px", borderRadius: "6px", border: "1px solid #ddd" }}>
-              <option value="cash">Cash</option>
-              <option value="upi">UPI</option>
-              <option value="card">Card</option>
-              <option value="bank">Bank Transfer</option>
-            </select>
-
-            <label>Note (optional)</label>
-            <input type="text" value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. advance payment"
-              style={{ width: "100%", padding: "10px", marginTop: "5px", marginBottom: "15px", borderRadius: "6px", border: "1px solid #ddd", boxSizing: "border-box" }}
-            />
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button onClick={() => setShowPaymentModal(false)}
-                style={{
-                  padding: "8px 12px", borderRadius: "6px",
-                  border: "1px solid #e53935", background: "#ffebee",
-                  color: "#c62828", fontWeight: "600", cursor: "pointer"
-                }}>
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  await api.addPurchasePayment({
-                    invoice_id: data.invoice.id,
-                    amount: Number(paymentAmount),
-                    mode: paymentMode,
-                    note
-                  });
-                  setShowPaymentModal(false);
-                  setPaymentAmount("");
-                  setNote("");
-                  loadDetails();
-                }}
-                style={{ padding: "8px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" }}
-              >
-                Save Payment
-              </button>
-            </div>
+{showPaymentModal && (
+  <div
+    onClick={() => setShowPaymentModal(false)}
+    style={{
+      position: "fixed", inset: 0,
+      background: "rgba(47,47,46,0.40)",
+      backdropFilter: "blur(6px)",
+      display: "flex", justifyContent: "center", alignItems: "center",
+      zIndex: 2000,
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        width: "420px", background: "#fff",
+        borderRadius: "20px", padding: "28px",
+        boxShadow: "0 32px 80px rgba(47,47,46,0.20)",
+        border: "1px solid #DEDBD4",
+      }}
+    >
+      {/* Modal Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "22px" }}>
+        <div style={{
+          width: "44px", height: "44px", borderRadius: "12px",
+          background: "linear-gradient(135deg, #B8C6FB 0%, #C9B8FB 100%)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "20px", flexShrink: 0,
+          boxShadow: "0 4px 14px rgba(124,156,246,0.25)",
+        }}>💳</div>
+        <div>
+          <div style={{ fontWeight: "800", fontSize: "17px", color: "#2F2F2E" }}>
+            Add Payment
+          </div>
+          <div style={{ fontSize: "12px", color: "#9B9A94", marginTop: "2px" }}>
+            Purchase #{data.invoice.id} · Balance ₹{Math.max(0, balance).toLocaleString("en-IN")}
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Amount */}
+      <div style={{ marginBottom: "16px" }}>
+        <label style={{
+          display: "block", fontSize: "11px", fontWeight: "700",
+          letterSpacing: "0.7px", textTransform: "uppercase",
+          color: "#6F6E69", marginBottom: "7px",
+        }}>Amount</label>
+        <div style={{ position: "relative" }}>
+          <span style={{
+            position: "absolute", left: "13px", top: "50%",
+            transform: "translateY(-50%)",
+            fontSize: "14px", fontWeight: "700", color: "#9B9A94",
+          }}>₹</span>
+          <input
+            type="number"
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            placeholder="0.00"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "11px 14px 11px 28px",
+              border: "1.5px solid #E8E6E1", borderRadius: "10px",
+              fontSize: "15px", fontWeight: "700", color: "#2F2F2E",
+              background: "#FBFAF8", outline: "none",
+              transition: "all 0.15s",
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#7C9CF6";
+              e.target.style.boxShadow = "0 0 0 3px rgba(124,156,246,0.14)";
+              e.target.style.background = "#fff";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "#E8E6E1";
+              e.target.style.boxShadow = "none";
+              e.target.style.background = "#FBFAF8";
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Payment Mode */}
+      <div style={{ marginBottom: "16px" }}>
+        <label style={{
+          display: "block", fontSize: "11px", fontWeight: "700",
+          letterSpacing: "0.7px", textTransform: "uppercase",
+          color: "#6F6E69", marginBottom: "7px",
+        }}>Payment Mode</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+          {[
+            { value: "cash",  label: "Cash",  icon: "💵" },
+            { value: "upi",   label: "UPI",   icon: "📱" },
+            { value: "card",  label: "Card",  icon: "💳" },
+            { value: "bank",  label: "Bank",  icon: "🏦" },
+          ].map(({ value, label, icon }) => (
+            <div
+              key={value}
+              onClick={() => setPaymentMode(value)}
+              style={{
+                padding: "10px 6px", borderRadius: "10px",
+                textAlign: "center", cursor: "pointer",
+                border: paymentMode === value
+                  ? "2px solid #7C9CF6"
+                  : "1.5px solid #E8E6E1",
+                background: paymentMode === value
+                  ? "rgba(124,156,246,0.10)"
+                  : "#FBFAF8",
+                transition: "all 0.15s",
+              }}
+            >
+              <div style={{ fontSize: "18px", marginBottom: "4px" }}>{icon}</div>
+              <div style={{
+                fontSize: "11px", fontWeight: "700",
+                color: paymentMode === value ? "#3A3A6E" : "#6F6E69",
+              }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Note */}
+      <div style={{ marginBottom: "24px" }}>
+        <label style={{
+          display: "block", fontSize: "11px", fontWeight: "700",
+          letterSpacing: "0.7px", textTransform: "uppercase",
+          color: "#6F6E69", marginBottom: "7px",
+        }}>Note <span style={{ fontSize: "10px", fontWeight: "400", textTransform: "none", color: "#9B9A94" }}>(optional)</span></label>
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. advance payment"
+          style={{
+            width: "100%", boxSizing: "border-box",
+            padding: "11px 14px",
+            border: "1.5px solid #E8E6E1", borderRadius: "10px",
+            fontSize: "14px", color: "#2F2F2E",
+            background: "#FBFAF8", outline: "none",
+            transition: "all 0.15s",
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = "#7C9CF6";
+            e.target.style.boxShadow = "0 0 0 3px rgba(124,156,246,0.14)";
+            e.target.style.background = "#fff";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "#E8E6E1";
+            e.target.style.boxShadow = "none";
+            e.target.style.background = "#FBFAF8";
+          }}
+        />
+      </div>
+
+      {/* Buttons */}
+      <div style={{ display: "flex", gap: "10px" }}>
+        <button
+          onClick={() => setShowPaymentModal(false)}
+          style={{
+            flex: 1, padding: "11px", borderRadius: "10px",
+            border: "1px solid #E8E6E1", background: "#F6F5F2",
+            color: "#6F6E69", fontWeight: "600", fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            await api.addPurchasePayment({
+              invoice_id: data.invoice.id,
+              amount: Number(paymentAmount),
+              mode: paymentMode,
+              note,
+            });
+            setShowPaymentModal(false);
+            setPaymentAmount("");
+            setNote("");
+            loadDetails();
+          }}
+          disabled={!paymentAmount || Number(paymentAmount) <= 0}
+          style={{
+            flex: 1, padding: "11px", borderRadius: "10px",
+            border: "none",
+            background: !paymentAmount || Number(paymentAmount) <= 0
+              ? "#E8E6E1"
+              : "linear-gradient(135deg, #B8C6FB 0%, #C9B8FB 100%)",
+            color: !paymentAmount || Number(paymentAmount) <= 0
+              ? "#9B9A94" : "#3A3A6E",
+            fontWeight: "700", fontSize: "14px",
+            cursor: !paymentAmount || Number(paymentAmount) <= 0
+              ? "not-allowed" : "pointer",
+            boxShadow: !paymentAmount || Number(paymentAmount) <= 0
+              ? "none" : "0 4px 14px rgba(124,156,246,0.25)",
+            transition: "all 0.15s",
+          }}
+        >
+          Save Payment
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ── TO COLLECT MODAL ── */}
       {showCollectModal && (

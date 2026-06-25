@@ -22,7 +22,19 @@ export function generateMinimalA4(data, options = {}) {
 
   const drawHeader = (pageNum) => {
     doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(20, 20, 20);
+if (settings?.logo) {
+  try {
+    const ext = settings.logo.startsWith("data:image/png") ? "PNG"
+               : settings.logo.startsWith("data:image/svg") ? "SVG"
+               : "JPEG";
+    doc.addImage(settings.logo, ext, margin, 5, 22, 11, "", "FAST");
+    doc.text(settings?.business_name || "Business", margin + 26, 18);
+  } catch (e) {
     doc.text(settings?.business_name || "Business", margin, 18);
+  }
+} else {
+  doc.text(settings?.business_name || "Business", margin, 18);
+}
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...ACCENT);
     const addrParts = [settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ");
     if (addrParts) doc.text(addrParts, margin, 23);
@@ -137,11 +149,23 @@ export function MinimalA4Preview({ data, deliveryCopy }) {
   return (
     <div className="invoice-preview" style={{ width: "210mm", minHeight: "297mm", margin: "24px auto", background: "#fff", padding: "36px 48px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)", fontSize: "12px", color: "#222", boxSizing: "border-box", fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", paddingBottom: "16px", borderBottom: `1px solid ${light}` }}>
-        <div>
-          <div style={{ fontSize: "26px", fontWeight: "700", letterSpacing: "-0.5px" }}>{settings?.business_name}</div>
-          <div style={{ fontSize: "11px", color: accent, marginTop: "4px" }}>{[settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ")}</div>
-          {settings?.phone && <div style={{ fontSize: "11px", color: accent }}>{settings.phone}</div>}
-          {settings?.gstin && <div style={{ fontSize: "11px", color: accent }}>GSTIN: {settings.gstin}</div>}
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          {settings?.logo && (
+            <img
+              src={settings.logo}
+              alt="Logo"
+              style={{
+                height: 110, width: 110, objectFit: "contain",
+                flexShrink: 0, borderRadius: "6px",
+              }}
+            />
+          )}
+          <div>
+            <div style={{ fontSize: "26px", fontWeight: "700", letterSpacing: "-0.5px" }}>{settings?.business_name}</div>
+            <div style={{ fontSize: "11px", color: accent, marginTop: "4px" }}>{[settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ")}</div>
+            {settings?.phone && <div style={{ fontSize: "11px", color: accent }}>{settings.phone}</div>}
+            {settings?.gstin && <div style={{ fontSize: "11px", color: accent }}>GSTIN: {settings.gstin}</div>}
+          </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "2px", color: accent, textTransform: "uppercase" }}>{deliveryCopy ? "Delivery Copy" : "Invoice"}</div>

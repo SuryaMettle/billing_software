@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
-
 import api from "../services/api.js";
 
 const STATUS_COLORS = {
   purchase: { 
     bg: "linear-gradient(135deg, #EAF3DE 0%, #D4E8C2 100%)", 
     color: "#3B6D11", 
-    label: "No returns" 
+    label: "✓ No returns" 
   },
   partial: { 
     bg: "linear-gradient(135deg, #FAEEDA 0%, #F0D4A2 100%)", 
     color: "#854F0B", 
-    label: "Partial return" 
+    label: "⚠ Partial return" 
+  },
+  returned: { 
+    bg: "linear-gradient(135deg, #FBEAE8 0%, #F3CBC6 100%)", 
+    color: "#991B1B", 
+    label: "↩ Fully returned" 
   },
 };
 
@@ -94,6 +98,10 @@ function PurchaseReturn({ onReturnSaved }) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "" });
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     loadInvoices();
@@ -126,6 +134,13 @@ function PurchaseReturn({ onReturnSaved }) {
       supplier.toLowerCase().includes(search.toLowerCase())
     );
   });
+
+  // Calculate pages based on filtered results
+  const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE) || 1;
+  const displayedInvoices = filteredInvoices.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const selectInvoice = async (invoiceId) => {
     if (selectedInvoice?.id === invoiceId) return;
@@ -220,27 +235,25 @@ function PurchaseReturn({ onReturnSaved }) {
         border: "1px solid rgba(255,255,255,0.3)"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div>
-            <h1 style={{ 
-              fontSize: 28, 
-              fontWeight: 700, 
-              margin: 0,
-              background: "linear-gradient(135deg, #1a1a1a 0%, #333 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent"
-            }}>Purchase Return</h1>
-            <span style={{ 
-              fontSize: 13, 
-              padding: "6px 12px", 
-              borderRadius: 20, 
-              background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)", 
-              color: "#1976d2", 
-              fontWeight: 600,
-              boxShadow: "0 2px 8px rgba(25, 118, 210, 0.2)"
-            }}>
-              {invoices.length} purchase invoices available
-            </span>
-          </div>
+          <h1 style={{ 
+            fontSize: 28, 
+            fontWeight: 700, 
+            margin: 0,
+            background: "linear-gradient(135deg, #1a1a1a 0%, #333 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent"
+          }}>Purchase Return</h1>
+          <span style={{ 
+            fontSize: 13, 
+            padding: "6px 12px", 
+            borderRadius: 20, 
+            background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)", 
+            color: "#1976d2", 
+            fontWeight: 600,
+            boxShadow: "0 2px 8px rgba(25, 118, 210, 0.2)"
+          }}>
+            {invoices.length} purchase invoices available
+          </span>
         </div>
         <div style={{ 
           fontSize: 14, 
@@ -260,7 +273,7 @@ function PurchaseReturn({ onReturnSaved }) {
       {/* Two-panel layout */}
       <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 24, alignItems: "start" }}>
 
-        {/* Left: Purchase Invoice List */}
+        {/* Left: Purchase Invoice List Box */}
         <div style={{ 
           borderRadius: 20, 
           overflow: "hidden", 
@@ -303,7 +316,10 @@ function PurchaseReturn({ onReturnSaved }) {
                 type="text"
                 placeholder="Search by ID or supplier..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1); // Reset page on user search query
+                }}
                 style={{
                   width: "100%",
                   fontSize: 15,
@@ -323,7 +339,7 @@ function PurchaseReturn({ onReturnSaved }) {
             </div>
           </div>
 
-          {/* Invoice items */}
+          {/* Invoice items container */}
           <div style={{ maxHeight: 500, overflowY: "auto" }}>
             {loading && !selectedInvoice && (
               <div style={{ 
@@ -336,7 +352,7 @@ function PurchaseReturn({ onReturnSaved }) {
                 Loading purchase invoices…
               </div>
             )}
-            {!loading && filteredInvoices.length === 0 && (
+            {!loading && displayedInvoices.length === 0 && (
               <div style={{ 
                 padding: "3rem 2rem", 
                 textAlign: "center", 
@@ -347,11 +363,14 @@ function PurchaseReturn({ onReturnSaved }) {
                 No purchase invoices found
               </div>
             )}
-            {filteredInvoices.map((inv) => {
+            {displayedInvoices.map((inv) => {
               const isActive = selectedInvoice?.id === inv.id;
-              const statusInfo = inv.has_return
-                ? STATUS_COLORS.partial
-                : STATUS_COLORS.purchase;
+              const returnKey = inv.has_return !== 1
+  ? "purchase"
+  : Number(inv.return_total || 0) < Number(inv.total || 0)
+  ? "partial"
+  : "returned";
+const statusInfo = STATUS_COLORS[returnKey];
 
               return (
                 <div
@@ -437,6 +456,56 @@ function PurchaseReturn({ onReturnSaved }) {
               );
             })}
           </div>
+
+          {/* Pagination Footer Elements */}
+          {filteredInvoices.length > 0 && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "16px 20px",
+              borderTop: "1px solid rgba(0,0,0,0.05)",
+              background: "rgba(0,0,0,0.01)"
+            }}>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: "1px solid rgba(0,0,0,0.1)",
+                  background: currentPage === 1 ? "#f5f5f5" : "#fff",
+                  color: currentPage === 1 ? "#aaa" : "#333",
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                ◀ Prev
+              </button>
+              <span style={{ fontSize: 13, color: "#666", fontWeight: 500 }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: "1px solid rgba(0,0,0,0.1)",
+                  background: currentPage === totalPages ? "#f5f5f5" : "#fff",
+                  color: currentPage === totalPages ? "#aaa" : "#333",
+                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                Next ▶
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right: Detail Panel */}

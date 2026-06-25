@@ -23,6 +23,7 @@ if (process.env.USER_DATA_PATH) {
 console.log("DB path:", dbPath);
 
 const db = new Database(dbPath);
+db.pragma("foreign_keys = OFF");
 
 function addColumnIfMissing(tableName, columnName, columnDefinition) {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
@@ -231,6 +232,7 @@ db.prepare(`
 addColumnIfMissing("settings", "loyalty_earn_rate", "REAL DEFAULT 0.01");
 addColumnIfMissing("settings", "loyalty_redeem_value", "REAL DEFAULT 1.0");
 addColumnIfMissing("settings", "invoice_template", "TEXT DEFAULT 'modern-a4'");
+addColumnIfMissing("settings", "logo", "TEXT DEFAULT ''");
 
 db.prepare(`
   CREATE TABLE IF NOT EXISTS offers (
@@ -377,9 +379,20 @@ db.prepare(`
   )
 `).run();
 
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS sales_returns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_id INTEGER,
+    total REAL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
 addColumnIfMissing("sales_returns", "refund_status", "TEXT DEFAULT 'pending'");
 addColumnIfMissing("sales_returns", "refund_amount", "REAL DEFAULT 0");
 addColumnIfMissing("sales_returns", "credit_note_id", "INTEGER");
+
+
 
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
@@ -462,8 +475,15 @@ try {
 
 db.prepare(`DELETE FROM user_sessions`).run();
 
+addColumnIfMissing("settings", "google_refresh_token", "TEXT DEFAULT NULL");
+addColumnIfMissing("settings", "google_email", "TEXT DEFAULT NULL");
+
 export function backupDatabase(destPath) {
   return db.backup(destPath); 
+}
+
+export function closeDatabase() {
+  db.close();
 }
 
 export default db;

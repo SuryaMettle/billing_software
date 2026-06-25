@@ -57,6 +57,10 @@ const [selectedDate, setSelectedDate] = useState("");
   for (let y = currentYear; y >= currentYear - 5; y--) years.push(y);
 
   const handleExport = async () => {
+    if (filterType === "date" && !selectedDate) {
+      showToast("Please select a date before exporting", "error");
+      return;
+    }
     setLoading(true);
     try {
       // Fetch data from backend

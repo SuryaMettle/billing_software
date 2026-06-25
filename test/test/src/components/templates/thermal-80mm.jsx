@@ -2,26 +2,28 @@ import jsPDF from "jspdf";
 
 const W = 76;
 const M = 4;
+const M_RIGHT = 6; // extra right-side safety margin — thermal printers commonly clip 1-3mm off the physical edge
 const CW = W - M * 2;
+// Many thermal printer drivers enforce their own minimum feed length and will pad
+// out anything shorter themselves (often at the top, which is the gap you saw).
+// Setting our own sane floor means OUR layout controls that padding, not the driver.
+const MIN_PAGE_HEIGHT = 80;
 const BODY_SIZE = 8;
-const TITLE_SIZE = 10;
+const TITLE_SIZE = 14;
+const SUBTITLE_SIZE = 7.5;
 const SECTION_TITLE_SIZE = 7;
 const TOTAL_SIZE = 10;
 const FOOTER_SIZE = 8;
 
-function calcHeight(items, hasParty) {
-  const headerH = 42;
-  const billToH = hasParty ? 20 : 0;
-  const itemsH = items.length * 14 + 14;
-  const taxH = 24;
-  const totalsH = 30;
-  const footerH = 24;
-  return headerH + billToH + itemsH + taxH + totalsH + footerH + 20;
-}
+// Page height is now computed via a two-pass measure-then-draw render (see renderReceipt
+// and generateThermal80 below) instead of a fixed estimate — this guarantees zero blank
+// space at the top/bottom regardless of invoice length.
 
-export function generateThermal80(data, options = {}) {
-  const { invoice, items, settings, taxSummary, isSameState, deliveryCopy = false } = data;
-  const { shouldPrint = false } = options;
+// Renders the entire receipt onto the given jsPDF doc, starting at y=4.
+// Returns the final y position reached — used both to measure exact content
+// height (pass 1, scratch doc) and to do the real draw (pass 2, exact-sized doc).
+function renderReceipt(doc, data, deliveryCopy) {
+  const { invoice, items, settings, taxSummary, isSameState } = data;
   const total = Number(invoice.total || 0);
   const paid = Number(invoice.paid_amount || 0);
   const balance = total - paid;
@@ -30,7 +32,6 @@ export function generateThermal80(data, options = {}) {
   const deliveryBlank = "______";
   const hasParty = !!invoice.party_name;
 
-  const doc = new jsPDF({ unit: "mm", format: [80, calcHeight(items, hasParty) + 20], orientation: "portrait", compress: true, margins: { top: 5, bottom: 5, left: 0, right: 0 } });
   let y = 4;
 
   const centerText = (text, yPos, size = BODY_SIZE, bold = false) => {
@@ -38,7 +39,7 @@ export function generateThermal80(data, options = {}) {
     doc.setFontSize(size); doc.setTextColor(0, 0, 0);
     doc.text(String(text), W / 2, yPos, { align: "center" });
   };
-  const R = W - M;
+  const R = W - M_RIGHT;
   const leftRight = (left, right, yPos, size = BODY_SIZE) => {
     doc.setFont("helvetica", "normal"); doc.setFontSize(size); doc.setTextColor(0, 0, 0);
     doc.text(String(left), M, yPos); doc.text(String(right), R, yPos, { align: "right" });
@@ -49,7 +50,18 @@ export function generateThermal80(data, options = {}) {
     else { doc.line(M, yPos, R, yPos); }
   };
 
-  centerText(settings?.business_name || "Business Name", y + 5, TITLE_SIZE, true); y += 8;
+  // ── Business Name — large, bold, double-underlined ──
+  const bizName = (settings?.business_name || "Business Name").toUpperCase();
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(TITLE_SIZE);
+  doc.setTextColor(0, 0, 0);
+  doc.text(bizName, W / 2, y + 6, { align: "center" });
+  doc.setLineWidth(0.6);
+  doc.line(M, y + 8.5, R, y + 8.5);
+  doc.setLineWidth(0.2);
+  doc.line(M, y + 10, R, y + 10);
+  y += 13;
+
   if (settings?.address) {
     const addr = [settings.address, settings.city, settings.state, settings.pincode].filter(Boolean).join(", ");
     doc.setFont("helvetica", "normal"); doc.setFontSize(BODY_SIZE); doc.setTextColor(0, 0, 0);
@@ -69,7 +81,6 @@ export function generateThermal80(data, options = {}) {
 
   y += 2; divider(y, true); y += 4;
 
-  // ── Bill To — only if party name exists ──
   if (hasParty) {
     doc.setFont("helvetica", "bold"); doc.setFontSize(SECTION_TITLE_SIZE); doc.setTextColor(0);
     doc.text("BILL TO:", M, y); y += 4;
@@ -88,10 +99,7 @@ export function generateThermal80(data, options = {}) {
   y += 2; divider(y, true); y += 4;
 
   items.forEach((item) => {
-    const rate = Number(item.tax_rate || 0);
     const itemTotal = Number(item.price) * Number(item.quantity);
-    const base = itemTotal / (1 + rate / 100);
-    const taxAmt = itemTotal - base;
     doc.setFont("helvetica", "normal"); doc.setFontSize(BODY_SIZE);
     const nameLines = doc.splitTextToSize(item.name, 22);
     doc.text(nameLines, M, y);
@@ -99,12 +107,6 @@ export function generateThermal80(data, options = {}) {
     doc.text(Number(item.price).toFixed(0), COL_RATE, y, { align: "center" });
     doc.text(itemTotal.toFixed(2), COL_AMT, y, { align: "right" });
     y += nameLines.length * 3.5;
-    if (rate > 0) {
-      doc.setFont("helvetica", "normal"); doc.setFontSize(BODY_SIZE - 1); doc.setTextColor(0);
-      if (isSameState) doc.text(`  CGST ${rate / 2}%: ${(taxAmt / 2).toFixed(2)}  SGST ${rate / 2}%: ${(taxAmt / 2).toFixed(2)}`, M, y);
-      else doc.text(`  IGST ${rate}%: ${taxAmt.toFixed(2)}`, M, y);
-      doc.setTextColor(0); y += 3.5;
-    }
     y += 1;
   });
 
@@ -124,8 +126,66 @@ export function generateThermal80(data, options = {}) {
   centerText("Thank you! Visit again.", y, FOOTER_SIZE, true); y += 5;
   centerText(new Date().toLocaleString("en-IN"), y, BODY_SIZE);
 
-  if (shouldPrint) { const blob = doc.output("blob"); const url = URL.createObjectURL(blob); const win = window.open(url); win.onload = () => win.print(); }
+  return y; // final content height reached
+}
+
+export async function generateThermal80(data, options = {}) {
+  const { invoice, items, settings } = data;
+  const { shouldPrint = false } = options;
+  const deliveryCopy = data.deliveryCopy || false;
+
+  // Pass 1 — measure: render onto an oversized scratch doc just to find the real final y.
+  const scratch = new jsPDF({ unit: "mm", format: [80, 1000], orientation: "portrait", compress: true });
+  const measuredY = renderReceipt(scratch, data, deliveryCopy);
+  const exactHeight = Math.max(measuredY + 6, MIN_PAGE_HEIGHT);
+
+  // Pass 2 — draw: create the doc at the exact height and render for real.
+  const doc = new jsPDF({ unit: "mm", format: [80, exactHeight], orientation: "portrait", compress: true, margins: { top: 5, bottom: 5, left: 0, right: 0 } });
+  renderReceipt(doc, data, deliveryCopy);
+
+  if (shouldPrint) {
+    // Preferred path: silent native print through Electron's main process,
+    // with an explicit pageSize matching exactHeight. This is the only path
+    // that actually controls what the printer driver does — it bypasses the
+    // OS print dialog and any fixed paper-length preset the driver defaults to.
+    if (typeof window !== "undefined" && window.api?.printThermal) {
+      const pdfDataUrl = doc.output("datauristring");
+      const result = await window.api.printThermal({
+        pdfDataUrl,
+        widthMm: 80,
+        heightMm: exactHeight,
+        deviceName: settings?.thermal_printer_name || "RP 3220 star",
+      });
+      if (!result?.success) {
+        throw new Error(result?.error || "Native print failed");
+      }
+      return;
+    }
+
+    // Fallback for non-Electron contexts only (e.g. testing in a plain
+    // browser tab). Page size here is NOT guaranteed — it's whatever the
+    // OS print dialog / driver default happens to be.
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url);
+    if (!win) {
+      throw new Error("Popup blocked — please allow popups for this site to print.");
+    }
+    win.onload = () => win.print();
+  }
   else { doc.save(`Receipt_${invoice.id}.pdf`); }
+}
+
+// Native print entry point — used by index.js as `printNative` for direct printing without saving a file
+// Must return { success, error } since InvoicePrint.jsx checks result.success before showing an error.
+export async function printThermal80(data) {
+  try {
+    await generateThermal80(data, { shouldPrint: true });
+    return { success: true };
+  } catch (err) {
+    console.error("printThermal80 error:", err);
+    return { success: false, error: err?.message || String(err) };
+  }
 }
 
 export function Thermal80Preview({ data, deliveryCopy }) {
@@ -137,8 +197,6 @@ export function Thermal80Preview({ data, deliveryCopy }) {
   const subtotal = total - totalTax;
   const deliveryBlank = "______";
   const body = "10px";
-  const title = "13px";
-  const sectionTitle = "10px";
   const totalSize = "11px";
   const hasParty = !!invoice.party_name;
 
@@ -150,14 +208,33 @@ export function Thermal80Preview({ data, deliveryCopy }) {
 
   return (
     <div style={{ width: "80mm", maxWidth: "80mm", height: "auto", margin: 0, padding: "4mm", background: "#fff", boxShadow: "none", fontSize: "10px", fontFamily: "Helvetica, Arial, sans-serif", color: "#000", boxSizing: "border-box" }}>
-      <div style={{ textAlign: "center", borderBottom: "2px solid #000", paddingBottom: "6px", marginBottom: "6px" }}>
-        <div style={{ fontSize: title, fontWeight: "700" }}>{settings?.business_name}</div>
-        {settings?.address && <div style={{ fontSize: body }}>{[settings.address, settings.city, settings.state, settings.pincode].filter(Boolean).join(", ")}</div>}
+
+      {/* ── Company Name Header ── */}
+      <div style={{ textAlign: "center", paddingBottom: "6px", marginBottom: "6px" }}>
+        <div style={{
+          fontSize: "18px",
+          fontWeight: "900",
+          letterSpacing: "2px",
+          textTransform: "uppercase",
+          lineHeight: 1.2,
+          marginBottom: "4px",
+        }}>
+          {settings?.business_name}
+        </div>
+        {/* double underline */}
+        <div style={{ borderBottom: "2.5px solid #000", marginBottom: "2px" }} />
+        <div style={{ borderBottom: "1px solid #000", marginBottom: "6px" }} />
+
+        {settings?.address && (
+          <div style={{ fontSize: body }}>
+            {[settings.address, settings.city, settings.state, settings.pincode].filter(Boolean).join(", ")}
+          </div>
+        )}
         {settings?.phone && <div style={{ fontSize: body }}>Ph: {settings.phone}</div>}
         {settings?.gstin && <div style={{ fontSize: body, fontWeight: "700" }}>GSTIN: {settings.gstin}</div>}
       </div>
 
-      <div style={{ textAlign: "center", fontWeight: "700", fontSize: sectionTitle, borderBottom: "1px solid #000", paddingBottom: "4px", marginBottom: "4px", letterSpacing: "1px" }}>
+      <div style={{ textAlign: "center", fontWeight: "700", fontSize: "10px", borderBottom: "1px solid #000", paddingBottom: "4px", marginBottom: "4px", letterSpacing: "1px" }}>
         {deliveryCopy ? "** DELIVERY COPY **" : "** TAX INVOICE **"}
       </div>
 
@@ -191,10 +268,7 @@ export function Thermal80Preview({ data, deliveryCopy }) {
       </div>
 
       {items.map((item, i) => {
-        const rate = Number(item.tax_rate || 0);
         const itemTotal = Number(item.price) * Number(item.quantity);
-        const base = itemTotal / (1 + rate / 100);
-        const taxAmt = itemTotal - base;
         return (
           <div key={i} style={{ borderBottom: "1px solid #000", paddingBottom: "3px", marginBottom: "3px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: body }}>
@@ -203,11 +277,6 @@ export function Thermal80Preview({ data, deliveryCopy }) {
               <span style={{ width: "20%", textAlign: "center" }}>{Number(item.price).toFixed(0)}</span>
               <span style={{ width: "24%", textAlign: "right", fontWeight: "600" }}>{itemTotal.toFixed(2)}</span>
             </div>
-            {rate > 0 && (
-              <div style={{ fontSize: "9px", color: "#000" }}>
-                {isSameState ? `CGST ${rate / 2}%: ${(taxAmt / 2).toFixed(2)}  SGST ${rate / 2}%: ${(taxAmt / 2).toFixed(2)}` : `IGST ${rate}%: ${taxAmt.toFixed(2)}`}
-              </div>
-            )}
           </div>
         );
       })}

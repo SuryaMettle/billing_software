@@ -22,10 +22,12 @@ const LOCKED_PAGES = ["billing", "invoices", "parties"];
 export default function UserManagement() {
   const [users, setUsers]       = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [editUser, setEditUser] = useState(null);   // null = create, object = edit
+  const [editUser, setEditUser] = useState(null); 
   const [error, setError]       = useState("");
   const [success, setSuccess]   = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(null); // holds user object to delete
+  const [confirmDelete, setConfirmDelete] = useState(null); 
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const load = async () => {
     try {
@@ -35,6 +37,13 @@ export default function UserManagement() {
       setError(err.message);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
+  const paginatedUsers = users.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+  if (page > totalPages) setPage(totalPages);
+}, [totalPages]);
 
   useEffect(() => { load(); }, []);
 
@@ -83,7 +92,7 @@ export default function UserManagement() {
           </tr>
         </thead>
         <tbody>
-          {users.map((u) => (
+          {paginatedUsers.map((u) => (
             <tr key={u.id} style={s.tr}>
               <td style={s.td}>{u.username}</td>
               <td style={s.td}>
@@ -110,6 +119,28 @@ export default function UserManagement() {
           ))}
         </tbody>
       </table>
+
+      {totalPages > 1 && (
+  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 16 }}>
+    <button
+      onClick={() => setPage(p => Math.max(1, p - 1))}
+      disabled={page === 1}
+      style={{ ...s.actionBtn, background: page === 1 ? "#9ca3af" : "#374151", cursor: page === 1 ? "not-allowed" : "pointer" }}
+    >
+      ← Prev
+    </button>
+    <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>
+      Page {page} of {totalPages}
+    </span>
+    <button
+      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+      disabled={page === totalPages}
+      style={{ ...s.actionBtn, background: page === totalPages ? "#9ca3af" : "#374151", cursor: page === totalPages ? "not-allowed" : "pointer" }}
+    >
+      Next →
+    </button>
+  </div>
+)}
 
       {showForm && (
         <UserForm
@@ -159,7 +190,7 @@ function UserForm({ user, onSaved, onCancel }) {
     try { return JSON.parse(raw || "[]"); } catch { return []; }
   };
 
-  const defaultPerms = ["billing", "invoices", "parties"];
+  const defaultPerms = [...LOCKED_PAGES];
   const [permissions, setPermissions] = useState(
     isEdit ? parsePerms(user.permissions) : [...defaultPerms]
   );

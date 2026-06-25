@@ -143,115 +143,230 @@ function PurchaseInvoiceList() {
     <div style={{ marginTop: "30px", fontFamily: "sans-serif" }}>
 
       {/* ── Search + Sort ── */}
-      <div style={{ width: "100%", borderBottom: "1px solid #ddd", padding: "12px 0", marginBottom: "20px", display: "flex", alignItems: "center" }}>
-        <input
-          type="text"
-          placeholder="🔍 Search by supplier, date, invoice #..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-          style={{ width: "300px", padding: "10px 12px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "14px" }}
-        />
+<div style={{
+  display: "flex", alignItems: "center", gap: "10px",
+  marginBottom: "20px",
+}}>
+  <div style={{ position: "relative", flex: 1, maxWidth: "340px" }}>
+    <span style={{
+      position: "absolute", left: "12px", top: "50%",
+      transform: "translateY(-50%)", fontSize: "16px",
+      color: "#9B9A94", pointerEvents: "none",
+    }}>🔍</span>
+    <input
+      type="text"
+      placeholder="Search by supplier, date, invoice #…"
+      value={search}
+      onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+      style={{
+        width: "100%", padding: "10px 14px 10px 38px",
+        border: "1px solid #E8E6E1", borderRadius: "10px",
+        fontSize: "14px", background: "#fff",
+        color: "#2F2F2E", outline: "none",
+        transition: "all 0.15s", boxSizing: "border-box",
+      }}
+      onFocus={(e) => {
+        e.target.style.borderColor = "#7C9CF6";
+        e.target.style.boxShadow = "0 0 0 3px rgba(124,156,246,0.14)";
+      }}
+      onBlur={(e) => {
+        e.target.style.borderColor = "#E8E6E1";
+        e.target.style.boxShadow = "none";
+      }}
+    />
+  </div>
 
-        <div ref={dropdownRef} style={{ position: "relative" }}>
-          <button
-            onClick={() => setOpenDropdown(!openDropdown)}
-            style={{ marginLeft: "15px", height: "38px", padding: "0 14px", borderRadius: "8px", border: "1px solid #ccc", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", minWidth: "160px", color: "#333", fontSize: "14px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}
+  <div ref={dropdownRef} style={{ position: "relative" }}>
+    <button
+      onClick={() => setOpenDropdown(!openDropdown)}
+      style={{
+        display: "flex", alignItems: "center", gap: "8px",
+        padding: "10px 16px", border: "1px solid #E8E6E1",
+        borderRadius: "10px", background: "#fff",
+        fontSize: "13px", fontWeight: "600", color: "#6F6E69",
+        cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s",
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "#F6F5F2"; e.currentTarget.style.borderColor = "#DEDBD4"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#E8E6E1"; }}
+    >
+      <span style={{ fontSize: "14px" }}>⇅</span>
+      {sortOrder === "latest" ? "Latest first" : "Oldest first"}
+      <span style={{
+        fontSize: "10px", transition: "transform 0.2s",
+        transform: openDropdown ? "rotate(180deg)" : "rotate(0deg)",
+      }}>▼</span>
+    </button>
+
+    {openDropdown && (
+      <div style={{
+        position: "absolute", top: "calc(100% + 6px)", left: 0,
+        background: "#fff", border: "1px solid #E8E6E1",
+        borderRadius: "10px", boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
+        width: "160px", overflow: "hidden", zIndex: 100,
+      }}>
+        {["latest", "oldest"].map((order) => (
+          <div
+            key={order}
+            onClick={() => { setSortOrder(order); setCurrentPage(1); setOpenDropdown(false); }}
+            style={{
+              padding: "10px 14px", cursor: "pointer", fontSize: "13px",
+              fontWeight: sortOrder === order ? "700" : "500",
+              color: sortOrder === order ? "#534AB7" : "#2F2F2E",
+              background: sortOrder === order ? "#EEEDFE" : "transparent",
+              transition: "background 0.12s",
+            }}
+            onMouseEnter={(e) => { if (sortOrder !== order) e.currentTarget.style.background = "#F6F5F2"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = sortOrder === order ? "#EEEDFE" : "transparent"; }}
           >
-            {sortOrder === "latest" ? "Latest First" : "Oldest First"}
-            <span style={{ transition: "transform 0.2s ease", transform: openDropdown ? "rotate(180deg)" : "rotate(0deg)", marginLeft: "8px" }}>▼</span>
-          </button>
-
-          {openDropdown && (
-            <div style={{ position: "absolute", top: "110%", left: "15px", background: "#fff", border: "1px solid #ddd", borderRadius: "8px", boxShadow: "0 6px 15px rgba(0,0,0,0.1)", width: "160px", overflow: "hidden", zIndex: 100 }}>
-              {["latest", "oldest"].map((order) => (
-                <div
-                  key={order}
-                  onClick={() => { setSortOrder(order); setCurrentPage(1); setOpenDropdown(false); }}
-                  style={{ padding: "10px", cursor: "pointer", background: sortOrder === order ? "#f5f0ff" : "#fff", fontWeight: sortOrder === order ? "bold" : "normal" }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "#f5f5f5"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = sortOrder === order ? "#f5f0ff" : "#fff"}
-                >
-                  {order === "latest" ? "Latest First" : "Oldest First"}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+            {order === "latest" ? "Latest first" : "Oldest first"}
+          </div>
+        ))}
       </div>
-
-      {/* ── Stat cards ── */}
-      <div style={{ display: "flex", gap: "14px", marginBottom: "20px", alignItems: "stretch" }}>
-
-        <div
-          onClick={() => { setFilterType("all"); setCurrentPage(1); }}
-          style={{
-            background: filterType === "all" ? "#f5f0ff" : "#f5f5f5",
-            padding: "18px",
-            borderRadius: "12px",
-            cursor: "pointer",
-            border: filterType === "all" ? "2px solid #7c3aed" : "1px solid #e0e0e0",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            minWidth: "110px",
-            transition: "all 0.15s",
-          }}
-        >
-          <div style={{ fontSize: "20px", marginBottom: "4px" }}>📋</div>
-          <div style={{ fontSize: "12px", fontWeight: "600", color: filterType === "all" ? "#7c3aed" : "#555", textAlign: "center" }}>All Invoices</div>
-          <div style={{ fontSize: "18px", fontWeight: "700", color: filterType === "all" ? "#7c3aed" : "#333", marginTop: "4px" }}>{invoices.length}</div>
-        </div>
-
-        <div
-          onClick={() => { setFilterType(filterType === "paid" ? "all" : "paid"); setCurrentPage(1); }}
-          style={{ flex: 1, background: "#faf5ff", padding: "18px", borderRadius: "12px", cursor: "pointer", transition: "0.2s ease", border: filterType === "paid" ? "2px solid #7c3aed" : "1px solid #eee", transform: filterType === "paid" ? "translateY(-2px)" : "none" }}
-        >
-          <div style={{ fontSize: "13px", color: "#555" }}>Total Purchases</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#7c3aed" }}>
-            ₹{Number(stats.totalPurchases).toLocaleString("en-IN")}
-          </div>
-        </div>
-
-        <div
-          onClick={() => { setFilterType(filterType === "pending" ? "all" : "pending"); setCurrentPage(1); }}
-          style={{ flex: 1, background: "#ffebee", padding: "18px", borderRadius: "12px", cursor: "pointer", transition: "0.2s ease", border: filterType === "pending" ? "2px solid #d32f2f" : "1px solid #eee", transform: filterType === "pending" ? "translateY(-2px)" : "none" }}
-        >
-          <div style={{ fontSize: "13px", color: "#555" }}>Amount Pending</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#d32f2f" }}>
-            ₹{Number(stats.totalPending).toLocaleString("en-IN")}
-          </div>
-        </div>
-
-        <div
-          onClick={() => { setFilterType(filterType === "dueDate" ? "all" : "dueDate"); setCurrentPage(1); }}
-          style={{ flex: 1, background: "#fff3e0", padding: "18px", borderRadius: "12px", cursor: "pointer", transition: "0.2s ease", border: filterType === "dueDate" ? "2px solid #e65100" : "1px solid #eee", transform: filterType === "dueDate" ? "translateY(-2px)" : "none" }}
-        >
-          <div style={{ fontSize: "13px", color: "#555" }}>Due Date</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#e65100" }}>
-            {invoices.filter((inv) => isDueDateNear(inv)).length}
-          </div>
-        </div>
-
-        <div
-  onClick={() => { setFilterType(filterType === "returned" ? "all" : "returned"); setCurrentPage(1); }}
-  style={{
-    flex: 1,
-    background: "#fce4ec",
-    padding: "18px",
-    borderRadius: "12px",
-    cursor: "pointer",
-    transition: "0.2s ease",
-    border: filterType === "returned" ? "2px solid #880e4f" : "1px solid #eee",
-    transform: filterType === "returned" ? "translateY(-2px)" : "none"
-  }}
->
-  <div style={{ fontSize: "13px", color: "#555" }}>Returned</div>
-  <div style={{ fontSize: "22px", fontWeight: "700", color: "#880e4f" }}>
-    {invoices.filter(inv => inv.has_return === 1).length}
+    )}
   </div>
 </div>
-      </div>
+
+{/* ── Stat Cards ── */}
+{(() => {
+  const cards = [
+    {
+      key: "all",
+      label: "All invoices",
+      value: invoices.length,
+      sub: "total records",
+      icon: "🧾",
+      activeGradient: "linear-gradient(135deg, #7F77DD 0%, #534AB7 100%)",
+      activeBorder: "#534AB7",
+      idleBg: "#EEEDFE",
+      idleBorder: "#AFA9EC",
+      idleLabel: "#534AB7",
+      idleValue: "#3C3489",
+      idleSub: "#534AB7",
+      activeLabel: "rgba(255,255,255,0.75)",
+      activeValue: "#fff",
+      activeSub: "rgba(255,255,255,0.65)",
+      iconActiveBg: "rgba(255,255,255,0.18)",
+      iconIdleBg: "rgba(127,119,221,0.18)",
+    },
+    {
+      key: "pending",
+      label: "To collect",
+      value: `₹${Number(stats.totalPending).toLocaleString("en-IN")}`,
+      sub: "pending & partial",
+      icon: "💰",
+      activeGradient: "linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)",
+      activeBorder: "#0F6E56",
+      idleBg: "#E1F5EE",
+      idleBorder: "#9FE1CB",
+      idleLabel: "#0F6E56",
+      idleValue: "#085041",
+      idleSub: "#0F6E56",
+      activeLabel: "rgba(255,255,255,0.75)",
+      activeValue: "#fff",
+      activeSub: "rgba(255,255,255,0.65)",
+      iconActiveBg: "rgba(255,255,255,0.18)",
+      iconIdleBg: "rgba(29,158,117,0.15)",
+    },
+    {
+      key: "dueDate",
+      label: "Due soon",
+      value: invoices.filter((inv) => isDueDateNear(inv)).length,
+      sub: "within 10 days",
+      icon: "📅",
+      activeGradient: "linear-gradient(135deg, #BA7517 0%, #854F0B 100%)",
+      activeBorder: "#854F0B",
+      idleBg: "#FAEEDA",
+      idleBorder: "#FAC775",
+      idleLabel: "#854F0B",
+      idleValue: "#633806",
+      idleSub: "#854F0B",
+      activeLabel: "rgba(255,255,255,0.75)",
+      activeValue: "#fff",
+      activeSub: "rgba(255,255,255,0.65)",
+      iconActiveBg: "rgba(255,255,255,0.18)",
+      iconIdleBg: "rgba(186,117,23,0.14)",
+    },
+    {
+      key: "returned",
+      label: "Returned",
+      value: invoices.filter((inv) => inv.has_return === 1).length,
+      sub: "with returns",
+      icon: "↩",
+      activeGradient: "linear-gradient(135deg, #D4537E 0%, #993556 100%)",
+      activeBorder: "#993556",
+      idleBg: "#FBEAF0",
+      idleBorder: "#F4C0D1",
+      idleLabel: "#993556",
+      idleValue: "#72243E",
+      idleSub: "#993556",
+      activeLabel: "rgba(255,255,255,0.75)",
+      activeValue: "#fff",
+      activeSub: "rgba(255,255,255,0.65)",
+      iconActiveBg: "rgba(255,255,255,0.18)",
+      iconIdleBg: "rgba(212,83,126,0.14)",
+    },
+  ];
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "24px" }}>
+      {cards.map((c) => {
+        const isActive = filterType === c.key;
+        return (
+          <div
+            key={c.key}
+            onClick={() => { setFilterType(c.key); setCurrentPage(1); }}
+            style={{
+              borderRadius: "16px",
+              padding: "20px 22px",
+              cursor: "pointer",
+              border: `1.5px solid ${isActive ? c.activeBorder : c.idleBorder}`,
+              background: isActive ? c.activeGradient : c.idleBg,
+              boxShadow: isActive ? "0 8px 24px rgba(0,0,0,0.14)" : "0 1px 3px rgba(0,0,0,0.04)",
+              transition: "all 0.18s ease",
+              position: "relative",
+              overflow: "hidden",
+              transform: isActive ? "translateY(-2px)" : "none",
+            }}
+            onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.transform = "translateY(-2px)"; }}
+            onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.transform = "none"; }}
+          >
+            {/* icon bubble */}
+            <div style={{
+              width: "36px", height: "36px", borderRadius: "10px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              marginBottom: "14px", fontSize: "18px",
+              background: isActive ? c.iconActiveBg : c.iconIdleBg,
+            }}>{c.icon}</div>
+
+            <div style={{
+              fontSize: "11px", fontWeight: "700", letterSpacing: "0.7px",
+              textTransform: "uppercase", marginBottom: "6px",
+              color: isActive ? c.activeLabel : c.idleLabel,
+            }}>{c.label}</div>
+
+            <div style={{
+              fontSize: "26px", fontWeight: "800", letterSpacing: "-0.5px",
+              marginBottom: "4px",
+              color: isActive ? c.activeValue : c.idleValue,
+            }}>{c.value}</div>
+
+            <div style={{
+              fontSize: "12px",
+              color: isActive ? c.activeSub : c.idleSub,
+            }}>{c.sub}</div>
+
+            {/* decorative bg text */}
+            <div style={{
+              position: "absolute", bottom: "-14px", right: "-10px",
+              fontSize: "60px", opacity: 0.1,
+              userSelect: "none", pointerEvents: "none",
+            }}>{c.icon}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+})()}
 
       <h2 ref={listTopRef} style={{ marginBottom: "14px" }}>
         {headingMap[filterType] || "Purchase Invoice History"}

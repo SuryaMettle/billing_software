@@ -41,28 +41,45 @@ function OfferForm({ products, categories = [], onSubmit, onCancel, loading, err
   const handleChange = (field, value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
+  const TYPE_META = {
+    BXGY:             { icon: "🎁", color: "#065f46", bg: "#ecfdf5", border: "#6ee7b7" },
+    PERCENT_DISCOUNT: { icon: "％", color: "#1e40af", bg: "#eff6ff", border: "#93c5fd" },
+    FLAT_DISCOUNT:    { icon: "₹",  color: "#92400e", bg: "#fefce8", border: "#fcd34d" },
+    TIERED_DISCOUNT:  { icon: "📊", color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd" },
+    CATEGORY_DISCOUNT:{ icon: "🏷", color: "#c2410c", bg: "#fff7ed", border: "#fdba74" },
+    HAPPY_HOURS:      { icon: "⏰", color: "#0e7490", bg: "#ecfeff", border: "#67e8f9" },
+  };
+
+  const meta = TYPE_META[form.type] || TYPE_META.BXGY;
+
   const input = {
     width: "100%",
     padding: "9px 12px",
-    border: "1px solid #ddd",
+    border: "1px solid #e2e8f0",
     borderRadius: "8px",
     boxSizing: "border-box",
     fontSize: "14px",
+    background: "#fff",
+    color: "#1e293b",
+    outline: "none",
+    transition: "border-color 0.15s",
   };
 
   const label = {
     display: "block",
     fontWeight: "600",
-    fontSize: "13px",
+    fontSize: "12px",
     marginBottom: "5px",
-    color: "#374151",
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: "0.4px",
   };
 
   const field = { marginBottom: "14px" };
   const row = { display: "flex", gap: "14px" };
 
-  const btn = (bg = "#1976d2", color = "#fff") => ({
-    padding: "9px 18px",
+  const btn = (bg = "#6366f1", color = "#fff") => ({
+    padding: "10px 20px",
     background: bg,
     color,
     border: "none",
@@ -70,233 +87,319 @@ function OfferForm({ products, categories = [], onSubmit, onCancel, loading, err
     cursor: "pointer",
     fontWeight: "600",
     fontSize: "14px",
+    transition: "opacity 0.15s",
   });
 
   return (
-    <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", marginBottom: "16px" }}>
-      <h3 style={{ marginBottom: "18px", color: "#1976d2" }}>Create New Offer</h3>
-
-      {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", color: "#dc2626", fontSize: "14px" }}>
-          ⚠ {error}
+    <div style={{
+      background: "#fff",
+      borderRadius: "16px",
+      marginBottom: "20px",
+      overflow: "hidden",
+      border: "1px solid #e2e8f0",
+      boxShadow: "0 4px 24px rgba(99,102,241,0.10)",
+    }}>
+      {/* Header bar */}
+      <div style={{
+        background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
+        padding: "18px 24px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <div>
+          <div style={{ color: "#fff", fontWeight: "700", fontSize: "17px" }}>Create New Offer</div>
+          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px", marginTop: "2px" }}>
+            Fill in the details to set up a promotion
+          </div>
         </div>
-      )}
+        <div style={{
+          background: "rgba(255,255,255,0.15)",
+          borderRadius: "10px",
+          padding: "8px 14px",
+          color: "#fff",
+          fontSize: "13px",
+          fontWeight: "600",
+        }}>
+          {meta.icon} {OFFER_TYPES.find(t => t.value === form.type)?.label}
+        </div>
+      </div>
 
-      <div style={row}>
-        <div style={{ ...field, flex: 2 }}>
+      <div style={{ padding: "24px" }}>
+        {error && (
+          <div style={{
+            background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "10px",
+            padding: "12px 16px", marginBottom: "18px", color: "#dc2626",
+            fontSize: "13px", display: "flex", alignItems: "center", gap: "8px",
+          }}>
+            <span style={{ fontSize: "16px" }}>⚠</span> {error}
+          </div>
+        )}
+
+        {/* Offer Type selector as visual pills */}
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ ...label, marginBottom: "10px" }}>Offer Type</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {OFFER_TYPES.map((t) => {
+              const m = TYPE_META[t.value];
+              const active = form.type === t.value;
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => handleChange("type", t.value)}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "20px",
+                    border: `1.5px solid ${active ? m.border : "#e2e8f0"}`,
+                    background: active ? m.bg : "#f8fafc",
+                    color: active ? m.color : "#64748b",
+                    fontWeight: active ? "700" : "500",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {m.icon} {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Offer Name */}
+        <div style={{ ...field }}>
           <label style={label}>Offer Name *</label>
           <input
-            style={input}
+            style={{ ...input, fontSize: "15px", padding: "11px 14px", border: `1.5px solid ${meta.border}` }}
             value={form.name}
             placeholder="e.g. Buy 2 Coke Get 1 Free"
             onChange={(e) => handleChange("name", e.target.value)}
           />
         </div>
 
-        <div style={{ ...field, flex: 1 }}>
-          <label style={label}>Offer Type *</label>
-          <select
-            style={input}
-            value={form.type}
-            onChange={(e) => handleChange("type", e.target.value)}
+        {/* Type-specific fields in a highlighted box */}
+        <div style={{
+          background: meta.bg,
+          border: `1.5px solid ${meta.border}`,
+          borderRadius: "12px",
+          padding: "16px",
+          marginBottom: "16px",
+        }}>
+          <div style={{ fontSize: "12px", fontWeight: "700", color: meta.color, marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            {meta.icon} {OFFER_TYPES.find(t => t.value === form.type)?.label} Settings
+          </div>
+
+          {form.type === "BXGY" && (
+            <div style={row}>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Buy Product *</label>
+                <select style={input} value={form.buy_product_id} onChange={(e) => handleChange("buy_product_id", e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div style={{ ...field, flex: 0.4 }}>
+                <label style={label}>Buy Qty *</label>
+                <input style={input} type="number" min="1" value={form.buy_qty} onChange={(e) => handleChange("buy_qty", e.target.value)} />
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Free Product *</label>
+                <select style={input} value={form.free_product_id} onChange={(e) => handleChange("free_product_id", e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div style={{ ...field, flex: 0.4 }}>
+                <label style={label}>Free Qty *</label>
+                <input style={input} type="number" min="1" value={form.free_qty} onChange={(e) => handleChange("free_qty", e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {form.type === "PERCENT_DISCOUNT" && (
+            <div style={row}>
+              <div style={{ ...field, flex: 2 }}>
+                <label style={label}>Product *</label>
+                <select style={input} value={form.product_id} onChange={(e) => handleChange("product_id", e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Discount % *</label>
+                <input style={input} type="number" min="1" max="100" value={form.discount_percent} onChange={(e) => handleChange("discount_percent", e.target.value)} />
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Min Qty (0 = any)</label>
+                <input style={input} type="number" min="0" value={form.min_qty ?? 0} onChange={(e) => handleChange("min_qty", e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {form.type === "FLAT_DISCOUNT" && (
+            <div style={row}>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Min Cart Value (₹)</label>
+                <input style={input} type="number" min="0" value={form.min_cart_value} onChange={(e) => handleChange("min_cart_value", e.target.value)} />
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Flat Discount Amount (₹) *</label>
+                <input style={input} type="number" min="1" value={form.flat_amount} onChange={(e) => handleChange("flat_amount", e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {form.type === "TIERED_DISCOUNT" && (
+            <div style={row}>
+              <div style={{ ...field, flex: 2 }}>
+                <label style={label}>Product *</label>
+                <select style={input} value={form.product_id} onChange={(e) => handleChange("product_id", e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Set Size (Buy X) *</label>
+                <input style={input} type="number" min="1" value={form.buy_qty} onChange={(e) => handleChange("buy_qty", e.target.value)} />
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Discount % per set *</label>
+                <input style={input} type="number" min="1" max="100" value={form.discount_percent} onChange={(e) => handleChange("discount_percent", e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {form.type === "CATEGORY_DISCOUNT" && (
+            <div style={row}>
+              <div style={{ ...field, flex: 2 }}>
+                <label style={label}>Category *</label>
+                <select style={input} value={form.category_id} onChange={(e) => handleChange("category_id", e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Discount % *</label>
+                <input style={input} type="number" min="1" max="100" value={form.discount_percent} onChange={(e) => handleChange("discount_percent", e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {form.type === "HAPPY_HOURS" && (
+            <div style={row}>
+              <div style={{ ...field, flex: 2 }}>
+                <label style={label}>Category (blank = all)</label>
+                <select style={input} value={form.category_id} onChange={(e) => handleChange("category_id", e.target.value)}>
+                  <option value="">-- All Categories --</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Start Time *</label>
+                <input style={input} type="time" value={form.start_time} onChange={(e) => handleChange("start_time", e.target.value)} />
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>End Time *</label>
+                <input style={input} type="time" value={form.end_time} onChange={(e) => handleChange("end_time", e.target.value)} />
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>Discount Type</label>
+                <select style={input} value={form.discount_mode} onChange={(e) => handleChange("discount_mode", e.target.value)}>
+                  <option value="percent">Percentage</option>
+                  <option value="amount">Amount</option>
+                </select>
+              </div>
+              <div style={{ ...field, flex: 1 }}>
+                <label style={label}>{form.discount_mode === "amount" ? "Discount Amount" : "Discount %"}</label>
+                <input
+                  style={input}
+                  type="number"
+                  min="1"
+                  max={form.discount_mode === "percent" ? "100" : undefined}
+                  value={form.discount_mode === "amount" ? form.flat_amount : form.discount_percent}
+                  onChange={(e) => handleChange(form.discount_mode === "amount" ? "flat_amount" : "discount_percent", e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Validity & Limits */}
+        <div style={{
+          background: "#f8fafc", border: "1px solid #e2e8f0",
+          borderRadius: "12px", padding: "16px", marginBottom: "16px",
+        }}>
+          <div style={{ fontSize: "12px", fontWeight: "700", color: "#475569", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            📅 Validity & Limits
+          </div>
+          <div style={row}>
+            <div style={{ ...field, flex: 1 }}>
+              <label style={label}>Start Date</label>
+              <input style={input} type="date" value={form.start_date} onChange={(e) => handleChange("start_date", e.target.value)} />
+            </div>
+            <div style={{ ...field, flex: 1 }}>
+              <label style={label}>End Date</label>
+              <input style={input} type="date" value={form.end_date} onChange={(e) => handleChange("end_date", e.target.value)} />
+            </div>
+            <div style={{ ...field, flex: 0.8 }}>
+              <label style={label}>Usage Limit (0=∞)</label>
+              <input style={input} type="number" min="0" value={form.usage_limit} onChange={(e) => handleChange("usage_limit", e.target.value)} />
+            </div>
+          </div>
+        </div>
+
+        {/* Toggles */}
+        <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap" }}>
+          {[
+            { field: "stackable", label: "Stackable", desc: "Combine with other offers", icon: "🔗" },
+            { field: "active", label: "Active immediately", desc: "Go live right away", icon: "✅" },
+          ].map(({ field: f, label: l, desc, icon }) => (
+            <label key={f} style={{
+              display: "flex", alignItems: "center", gap: "12px",
+              padding: "12px 16px", borderRadius: "10px", cursor: "pointer",
+              background: form[f] ? "#eff6ff" : "#f8fafc",
+              border: `1.5px solid ${form[f] ? "#93c5fd" : "#e2e8f0"}`,
+              flex: 1, minWidth: "180px", transition: "all 0.15s",
+            }}>
+              <input
+                type="checkbox"
+                checked={form[f]}
+                onChange={(e) => handleChange(f, e.target.checked)}
+                style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "#6366f1" }}
+              />
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: "600", color: form[f] ? "#1e40af" : "#374151" }}>
+                  {icon} {l}
+                </div>
+                <div style={{ fontSize: "11px", color: "#94a3b8" }}>{desc}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            style={{
+              ...btn(),
+              background: loading ? "#a5b4fc" : "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
+              padding: "11px 28px",
+              fontSize: "14px",
+              borderRadius: "10px",
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+            onClick={() => onSubmit(form)}
+            disabled={loading}
           >
-            {OFFER_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            {loading ? "⏳ Saving…" : "✓ Save Offer"}
+          </button>
+          <button
+            style={{ ...btn("#f1f5f9", "#64748b"), borderRadius: "10px", padding: "11px 20px" }}
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
         </div>
-      </div>
-
-      {form.type === "BXGY" && (
-        <div style={row}>
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Buy Product *</label>
-            <select style={input} value={form.buy_product_id} onChange={(e) => handleChange("buy_product_id", e.target.value)}>
-              <option value="">-- Select --</option>
-              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-
-          <div style={{ ...field, flex: 0.4 }}>
-            <label style={label}>Buy Qty *</label>
-            <input style={input} type="number" min="1" value={form.buy_qty} onChange={(e) => handleChange("buy_qty", e.target.value)} />
-          </div>
-
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Free Product *</label>
-            <select style={input} value={form.free_product_id} onChange={(e) => handleChange("free_product_id", e.target.value)}>
-              <option value="">-- Select --</option>
-              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-
-          <div style={{ ...field, flex: 0.4 }}>
-            <label style={label}>Free Qty *</label>
-            <input style={input} type="number" min="1" value={form.free_qty} onChange={(e) => handleChange("free_qty", e.target.value)} />
-          </div>
-        </div>
-      )}
-
-      {form.type === "PERCENT_DISCOUNT" && (
-        <div style={row}>
-          <div style={{ ...field, flex: 2 }}>
-            <label style={label}>Product *</label>
-            <select style={input} value={form.product_id} onChange={(e) => handleChange("product_id", e.target.value)}>
-              <option value="">-- Select --</option>
-              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Discount % *</label>
-            <input style={input} type="number" min="1" max="100" value={form.discount_percent} onChange={(e) => handleChange("discount_percent", e.target.value)} />
-          </div>
-
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Min Qty (0 = any qty)</label>
-            <input style={input} type="number" min="0" value={form.min_qty ?? 0} onChange={(e) => handleChange("min_qty", e.target.value)} />
-          </div>
-        </div>
-      )}
-
-      {form.type === "FLAT_DISCOUNT" && (
-        <div style={row}>
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Min Cart Value (₹)</label>
-            <input style={input} type="number" min="0" value={form.min_cart_value} onChange={(e) => handleChange("min_cart_value", e.target.value)} />
-          </div>
-
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Flat Discount Amount (₹) *</label>
-            <input style={input} type="number" min="1" value={form.flat_amount} onChange={(e) => handleChange("flat_amount", e.target.value)} />
-          </div>
-        </div>
-      )}
-
-      {form.type === "TIERED_DISCOUNT" && (
-        <div style={row}>
-          <div style={{ ...field, flex: 2 }}>
-            <label style={label}>Product *</label>
-            <select style={input} value={form.product_id} onChange={(e) => handleChange("product_id", e.target.value)}>
-              <option value="">-- Select --</option>
-              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Set Size (Buy X) *</label>
-            <input style={input} type="number" min="1" value={form.buy_qty} onChange={(e) => handleChange("buy_qty", e.target.value)} />
-          </div>
-
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Discount % per set *</label>
-            <input style={input} type="number" min="1" max="100" value={form.discount_percent} onChange={(e) => handleChange("discount_percent", e.target.value)} />
-          </div>
-        </div>
-      )}
-
-      {form.type === "CATEGORY_DISCOUNT" && (
-        <div style={row}>
-          <div style={{ ...field, flex: 2 }}>
-            <label style={label}>Category *</label>
-            <select style={input} value={form.category_id} onChange={(e) => handleChange("category_id", e.target.value)}>
-              <option value="">-- Select --</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ ...field, flex: 1 }}>
-            <label style={label}>Discount % *</label>
-            <input style={input} type="number" min="1" max="100" value={form.discount_percent} onChange={(e) => handleChange("discount_percent", e.target.value)} />
-          </div>
-        </div>
-      )}
-
-      {form.type === "HAPPY_HOURS" && (
-  <div style={row}>
-    <div style={{ ...field, flex: 2 }}>
-      <label style={label}>Category (blank = all)</label>
-      <select style={input} value={form.category_id} onChange={(e) => handleChange("category_id", e.target.value)}>
-        <option value="">-- All Categories --</option>
-        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
-    </div>
-
-    <div style={{ ...field, flex: 1 }}>
-      <label style={label}>Start Time *</label>
-      <input style={input} type="time" value={form.start_time} onChange={(e) => handleChange("start_time", e.target.value)} />
-    </div>
-
-    <div style={{ ...field, flex: 1 }}>
-      <label style={label}>End Time *</label>
-      <input style={input} type="time" value={form.end_time} onChange={(e) => handleChange("end_time", e.target.value)} />
-    </div>
-
-    <div style={{ ...field, flex: 1 }}>
-      <label style={label}>Discount Type</label>
-      <select style={input} value={form.discount_mode} onChange={(e) => handleChange("discount_mode", e.target.value)}>
-        <option value="percent">Percentage</option>
-        <option value="amount">Amount</option>
-      </select>
-    </div>
-
-    <div style={{ ...field, flex: 1 }}>
-      <label style={label}>{form.discount_mode === "amount" ? "Discount Amount" : "Discount %"}</label>
-      <input
-        style={input}
-        type="number"
-        min="1"
-        max={form.discount_mode === "percent" ? "100" : undefined}
-        value={form.discount_mode === "amount" ? form.flat_amount : form.discount_percent}
-        onChange={(e) => handleChange(form.discount_mode === "amount" ? "flat_amount" : "discount_percent", e.target.value)}
-      />
-    </div>
-  </div>
-)}
-
-      <div style={row}>
-        <div style={{ ...field, flex: 1 }}>
-          <label style={label}>Start Date</label>
-          <input style={input} type="date" value={form.start_date} onChange={(e) => handleChange("start_date", e.target.value)} />
-        </div>
-
-        <div style={{ ...field, flex: 1 }}>
-          <label style={label}>End Date</label>
-          <input style={input} type="date" value={form.end_date} onChange={(e) => handleChange("end_date", e.target.value)} />
-        </div>
-
-        <div style={{ ...field, flex: 0.8 }}>
-          <label style={label}>Usage Limit (0=∞)</label>
-          <input style={input} type="number" min="0" value={form.usage_limit} onChange={(e) => handleChange("usage_limit", e.target.value)} />
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: "20px", alignItems: "center", marginBottom: "16px" }}>
-        <label style={{ display: "flex", gap: "8px", alignItems: "center", cursor: "pointer" }}>
-          <input type="checkbox" checked={form.stackable} onChange={(e) => handleChange("stackable", e.target.checked)} />
-          <span style={{ fontSize: "14px", fontWeight: "500" }}>Stackable (combine with other offers)</span>
-        </label>
-
-        <label style={{ display: "flex", gap: "8px", alignItems: "center", cursor: "pointer" }}>
-          <input type="checkbox" checked={form.active} onChange={(e) => handleChange("active", e.target.checked)} />
-          <span style={{ fontSize: "14px", fontWeight: "500" }}>Active immediately</span>
-        </label>
-      </div>
-
-      <div style={{ display: "flex", gap: "10px" }}>
-        <button style={btn()} onClick={() => onSubmit(form)} disabled={loading}>
-          {loading ? "Saving…" : "Save Offer"}
-        </button>
-
-        <button style={btn("#f1f5f9", "#374151")} onClick={onCancel}>
-          Cancel
-        </button>
       </div>
     </div>
   );
@@ -537,6 +640,18 @@ setLoading(true);
 
     if (type === "CATEGORY_DISCOUNT") {
       return `${offer.discount_percent ?? offer.discountPercent}% OFF on all products in ${categoryName(offer.category_id ?? offer.categoryId)}`;
+    }
+
+    if (type === "HAPPY_HOURS") {
+      const start = offer.start_time ?? offer.startTime ?? "";
+      const end = offer.end_time ?? offer.endTime ?? "";
+      const mode = offer.discount_mode ?? offer.discountMode ?? "percent";
+      const catId = offer.category_id ?? offer.categoryId;
+      const target = catId ? `in ${categoryName(catId)}` : "on all products";
+      const discount = mode === "amount"
+        ? `₹${offer.flat_amount ?? offer.flatAmount} OFF`
+        : `${offer.discount_percent ?? offer.discountPercent}% OFF`;
+      return `${discount} ${target} · ${start} – ${end}`;
     }
 
     return type;

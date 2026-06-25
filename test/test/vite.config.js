@@ -30,9 +30,10 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-        navigateFallback: 'index.html',
-        runtimeCaching: [
+  maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB, raised from default 2 MB
+  globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+  navigateFallback: 'index.html',
+  runtimeCaching: [
           {
             urlPattern: /^http:\/\/.*\/api\/.*/,
             handler: 'NetworkFirst',

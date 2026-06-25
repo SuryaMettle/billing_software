@@ -1,7 +1,7 @@
 import { generateModernA4, ModernA4Preview } from "./modern-a4.jsx";
 import { generateClassicA4, ClassicA4Preview } from "./classic-a4.jsx";
 import { generateMinimalA4, MinimalA4Preview } from "./minimal-a4.jsx";
-import { generateThermal80, Thermal80Preview } from "./thermal-80mm.jsx";
+import { generateThermal80, Thermal80Preview, printThermal80 } from "./thermal-80mm.jsx";
 
 export const TEMPLATES = {
   "modern-a4": {
@@ -39,6 +39,7 @@ export const TEMPLATES = {
     icon: "🧾",
     generatePDF: generateThermal80,
     Preview: Thermal80Preview,
+    printNative: printThermal80,
   },
 };
 

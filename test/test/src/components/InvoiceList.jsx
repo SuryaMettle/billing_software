@@ -23,18 +23,11 @@ function InvoiceList() {
   setInvoices(data);
 
   const toCollect = data
-    .filter(
-      (inv) =>
-        inv.payment_status === "pending" || inv.payment_status === "partial"
-    )
-    .reduce(
-      (sum, inv) =>
-        sum +
-        Number(inv.total || 0) -
-        Number(inv.paid_amount || 0) -
-        Number(inv.return_total || 0),
-      0
-    );
+  .filter(inv => inv.payment_status === "pending" || inv.payment_status === "partial")
+  .reduce((sum, inv) => {
+    const balance = Number(inv.total || 0) - Number(inv.paid_amount || 0) - Number(inv.return_total || 0);
+    return sum + Math.max(0, balance); 
+  }, 0);
 
   setStats({ toCollect, toPay: 0 });
 };
@@ -163,68 +156,67 @@ return matchesSearch;
       </div>
 
       {/* ── Stat cards ── */}
-      <div style={{ display: "flex", gap: "14px", marginBottom: "20px", alignItems: "stretch" }}>
+<div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 10, marginBottom: 24 }}>
 
-        {/* All Invoices — reset card */}
-        <div
-          onClick={() => { setFilterType("all"); setCurrentPage(1); }}
-          style={{
-            background: filterType === "all" ? "#e8eaf6" : "#f5f5f5",
-            padding: "18px",
-            borderRadius: "12px",
-            cursor: "pointer",
-            border: filterType === "all" ? "2px solid #3949ab" : "1px solid #e0e0e0",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            minWidth: "110px",
-            transition: "all 0.15s",
-          }}
-        >
-          <div style={{ fontSize: "20px", marginBottom: "4px" }}>📋</div>
-          <div style={{ fontSize: "12px", fontWeight: "600", color: filterType === "all" ? "#3949ab" : "#555", textAlign: "center", lineHeight: "1.3" }}>
-            All Invoices
-          </div>
-          <div style={{ fontSize: "18px", fontWeight: "700", color: filterType === "all" ? "#3949ab" : "#333", marginTop: "4px" }}>
-            {invoices.length}
-          </div>
+  {/* All Invoices */}
+  {[
+    {
+      key: "all", label: "All invoices", value: invoices.length, sub: "total records",
+      accent: "#7F77DD", bg: "#EEEDFE", textDark: "#3C3489", textMid: "#534AB7",
+      icon: "🗂", spark: [40,55,45,70,60,80,100]
+    },
+    {
+      key: "toCollect", label: "To collect", value: `₹${Math.max(0,stats.toCollect).toLocaleString("en-IN")}`,
+      sub: "pending & partial", accent: "#1D9E75", bg: "#E1F5EE", textDark: "#085041", textMid: "#0F6E56",
+      icon: "💰", spark: [60,45,75,50,80,65,90]
+    },
+    {
+      key: "dueDate", label: "Due soon", value: invoices.filter(isDueDateNear).length,
+      sub: "within 10 days", accent: "#BA7517", bg: "#FAEEDA", textDark: "#633806", textMid: "#854F0B",
+      icon: "📅", spark: [30,50,40,65,55,75,100]
+    },
+    {
+      key: "returned", label: "Returned", value: invoices.filter(inv => inv.has_return === 1).length,
+      sub: "with returns", accent: "#D4537E", bg: "#FBEAF0", textDark: "#72243E", textMid: "#993556",
+      icon: "↩", spark: [50,35,60,45,70,80,95]
+    }
+  ].map(({ key, label, value, sub, accent, bg, textDark, textMid, icon, spark }) => {
+    const isActive = filterType === key || (key === "toCollect" && filterType === "toCollect");
+    return (
+      <div
+        key={key}
+        onClick={() => { setFilterType(filterType === key && key !== "all" ? "all" : key); setCurrentPage(1); }}
+        style={{
+          background: isActive ? bg : "#fff",
+          border: isActive ? `1.5px solid ${accent}` : "0.5px solid #e5e7eb",
+          borderRadius: 14, padding: "18px 16px 14px",
+          cursor: "pointer", transition: "all 0.15s", position: "relative", overflow: "hidden"
+        }}
+      >
+        {/* top accent bar */}
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: accent, borderRadius: "14px 14px 0 0" }} />
+
+        {/* icon */}
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12, fontSize: 18 }}>
+          {icon}
         </div>
 
-        {/* To Collect */}
-        <div
-          onClick={() => { setFilterType(filterType === "toCollect" ? "all" : "toCollect"); setCurrentPage(1); }}
-          style={{ flex: 1, background: "#e8f5e9", padding: "18px", borderRadius: "12px", cursor: "pointer", border: filterType === "toCollect" ? "2px solid #2e7d32" : "1px solid #eee", transition: "all 0.15s" }}
-        >
-          <div style={{ fontSize: "13px", color: "#555" }}>To Collect</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#2e7d32" }}>
-            ₹{Number(stats.toCollect).toLocaleString("en-IN")}
-          </div>
+        <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.4px", textTransform: "uppercase", color: textMid, marginBottom: 6 }}>{label}</div>
+        <div style={{ fontSize: 26, fontWeight: 500, color: textDark, lineHeight: 1, marginBottom: 6 }}>{value}</div>
+
+        {/* pill */}
+        <div style={{ display: "inline-flex", alignItems: "center", fontSize: 10, fontWeight: 500, padding: "2px 7px", borderRadius: 20, background: bg, color: textMid }}>{sub}</div>
+
+        {/* sparkline */}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 2, marginTop: 10, height: 20 }}>
+          {spark.map((h, i) => (
+            <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 2, background: i >= 5 ? accent : bg === "#fff" ? "#e5e7eb" : bg }} />
+          ))}
         </div>
-
-        {/* Due Date */}
-        <div
-          onClick={() => { setFilterType(filterType === "dueDate" ? "all" : "dueDate"); setCurrentPage(1); }}
-          style={{ flex: 1, background: "#ffebee", padding: "18px", borderRadius: "12px", cursor: "pointer", border: filterType === "dueDate" ? "2px solid #d32f2f" : "1px solid #eee", transition: "all 0.15s" }}
-        >
-          <div style={{ fontSize: "13px", color: "#555" }}>Due Date</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#d32f2f" }}>
-            {invoices.filter((inv) => isDueDateNear(inv)).length}
-          </div>
-        </div>
-
-        {/* Returned */}
-        <div
-  onClick={() => { setFilterType(filterType === "returned" ? "all" : "returned"); setCurrentPage(1); }}
-  style={{ flex: 1, background: "#fce4ec", padding: "18px", borderRadius: "12px", cursor: "pointer", border: filterType === "returned" ? "2px solid #880e4f" : "1px solid #eee", transition: "all 0.15s" }}
->
-  <div style={{ fontSize: "13px", color: "#555" }}>Returned</div>
-  <div style={{ fontSize: "22px", fontWeight: "700", color: "#880e4f" }}>
-    {invoices.filter((inv) => inv.has_return === 1).length}
-  </div>
-</div>
-
       </div>
+    );
+  })}
+</div>
 
       {/* ── Table ── */}
       <h2 ref={listTopRef} style={{ marginBottom: "14px" }}>

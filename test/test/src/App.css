@@ -27,18 +27,23 @@ body {
 }
 
 /* Thin scrollbar that blends with the dark sidebar */
-.sidebar::-webkit-scrollbar {
-  width: 4px;
+/* Sidebar nav scrollbar — thin & invisible by default */
+.sidebar ::-webkit-scrollbar {
+  width: 3px;
 }
-.sidebar::-webkit-scrollbar-track {
-  background: #1e1e2f;
+
+.sidebar ::-webkit-scrollbar-track {
+  background: transparent;
 }
-.sidebar::-webkit-scrollbar-thumb {
-  background: #3f3f5f;
-  border-radius: 4px;
+
+.sidebar ::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 10px;
+  transition: background 0.2s;
 }
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: #4caf50;
+
+.sidebar:hover ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
 }
 .sidebar h2 {
   margin-bottom: 20px;

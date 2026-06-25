@@ -14,6 +14,7 @@ import Offers from "./components/Offers";
 import GSTReports from "./components/GSTReports";
 import LoginPage from "./components/LoginPage";
 import UserManagement from "./components/UserManagement";
+import Reports from "./components/Reports";
 import "./App.css";
 
 import api from "./services/api.js";
@@ -27,11 +28,12 @@ const NAV_ITEMS = [
   { key: "invoices",         label: "Invoices",          roles: ["admin", "cashier"] },
   { key: "sales-return",     label: "Sales Return",      roles: ["admin", "cashier"] },
   { key: "parties",          label: "Parties",           roles: ["admin", "cashier"] },
-  { key: "purchases",        label: "Purchase Invoice",  roles: ["admin"] },
-  { key: "purchase-history", label: "Purchase History",  roles: ["admin"] },
-  { key: "purchase-return",  label: "Purchase Return",   roles: ["admin"] },
-  { key: "offers",           label: "Offers",            roles: ["admin"] },
-  { key: "gst-reports",      label: "GST Reports",       roles: ["admin"] },
+  { key: "purchases",        label: "Purchase Invoice",  roles: ["admin", "cashier"] }, // ← changed
+  { key: "purchase-history", label: "Purchase History",  roles: ["admin", "cashier"] }, // ← changed
+  { key: "purchase-return",  label: "Purchase Return",   roles: ["admin", "cashier"] }, // ← changed
+  { key: "offers",           label: "Offers",            roles: ["admin", "cashier"] }, // ← changed
+  { key: "gst-reports",      label: "GST Reports",       roles: ["admin", "cashier"] }, // ← changed
+  { key: "reports",          label: "Reports",           roles: ["admin"] },
   { key: "settings",         label: "Settings",          roles: ["admin"] },
   { key: "users",            label: "Users",             roles: ["admin"] },
 ];
@@ -47,6 +49,8 @@ function App() {
   const [sessionSummary, setSessionSummary]         = useState(null);
   const [lastSessionSummary, setLastSessionSummary] = useState(null);
   const [sidebarOpen, setSidebarOpen]               = useState(true);
+  const [backupReminderLoading, setBackupReminderLoading] = useState(false);
+  const [backupDone, setBackupDone]                       = useState(false);
 
   const role = user?.role || null;
 
@@ -78,13 +82,27 @@ function App() {
   };
 
   const doLogout = () => {
-    clearSession();
-    setUser(null);
-    setProducts([]);
-    setCategories([]);
-    setShowLogoutSummary(false);
-    setSessionSummary(null);
-  };
+  clearSession();
+  setUser(null);
+  setProducts([]);
+  setCategories([]);
+  setShowLogoutSummary(false);
+  setSessionSummary(null);
+  setBackupDone(false);        
+};
+
+  const handleBackupAndLogout = async () => {
+  setBackupReminderLoading(true);
+  try {
+    await api.backupDatabase();
+    setBackupDone(true);
+  } catch (e) {
+    // still let them logout even if backup fails
+    setBackupDone(true);
+  } finally {
+    setBackupReminderLoading(false);
+  }
+};
 
   useEffect(() => {
     const listener = () => handleLogout();
@@ -168,151 +186,262 @@ function App() {
     <div className="app-container" style={{ display: "flex", height: "100vh", overflow: "hidden", position: "relative" }}>
 
       {/* ── SIDEBAR ── */}
-      <div
-        className="sidebar"
+<div
+  className="sidebar"
+  style={{
+    width: sidebarOpen ? 220 : 56,
+    minWidth: sidebarOpen ? 220 : 56,
+    transition: "width 0.25s ease, min-width 0.25s ease",
+    flexShrink: 0,
+    background: "linear-gradient(180deg, #0f172a 0%, #1e3a5f 100%)",
+    boxShadow: "2px 0 12px rgba(0,0,0,0.25)",
+    height: "100%",
+    position: "relative",
+    zIndex: 10,
+  }}
+>
+  <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", padding: "12px 10px" }}>
+
+    {/* TOP ROW: hamburger + brand */}
+    <div style={{ display: "flex", alignItems: "center", marginBottom: 16, flexShrink: 0, gap: 10 }}>
+      <button
+        onClick={() => setSidebarOpen(o => !o)}
         style={{
-          width: sidebarOpen ? 196 : 48,
-          minWidth: sidebarOpen ? 196 : 48,
-          transition: "width 0.25s ease, min-width 0.25s ease",
+          background: "rgba(255,255,255,0.08)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          color: "#e0f2fe",
+          fontSize: 18,
+          cursor: "pointer",
+          padding: "8px 10px",
+          lineHeight: 1,
           flexShrink: 0,
+          borderRadius: 10,
+          transition: "background 0.2s",
         }}
+        onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.16)"}
+        onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+        title={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
       >
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", transition: "width 0.25s ease" }}>
+        ☰
+      </button>
+      {sidebarOpen && (
+        <span style={{ color: "#f0f9ff", fontWeight: 700, fontSize: 16, letterSpacing: 0.4 }}>
+          Menu
+        </span>
+      )}
+    </div>
 
-          {/* TOP ROW: hamburger always at left, title beside it when open */}
-          <div style={{ display: "flex", alignItems: "center", marginBottom: 8, flexShrink: 0 }}>
-            <button
-              onClick={() => setSidebarOpen(o => !o)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#ccc",
-                fontSize: 22,
-                cursor: "pointer",
-                padding: "4px 8px",
-                lineHeight: 1,
-                flexShrink: 0,
-              }}
-              title={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
-            >
-              ☰
-            </button>
+    {/* Nav buttons */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, overflowY: "auto",
+      scrollbarWidth: "thin",          
+      scrollbarColor: "transparent transparent",
+     }}>
+      {sidebarOpen && visibleNav.map(({ key, label }) => {
+        const active = activePage === key;
+        return (
+          <button
+            key={key}
+            onClick={() => setPage(key)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              textAlign: "left",
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13.5,
+              fontWeight: 600,
+              letterSpacing: 0.2,
+              transition: "background 0.15s, color 0.15s, transform 0.1s",
+              background: active ? "#f0f9ff" : "transparent",
+              color: active ? "#1e3a5f" : "#cbd5e1",
+              boxShadow: active ? "0 2px 8px rgba(0,0,0,0.2)" : "none",
+            }}
+            onMouseEnter={(e) => {
+              if (!active) {
+                e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.color = "#f0f9ff";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!active) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#cbd5e1";
+              }
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
 
-          </div>
-
-          {/* Nav buttons */}
-          {sidebarOpen && visibleNav.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setPage(key)}
-              className={`nav-btn ${activePage === key ? "active" : ""}`}
-            >
-              {label}
-            </button>
-          ))}
-
-          {/* ── User info + logout ── */}
-          {sidebarOpen && (
-            <div style={styles.sidebarFooter}>
-              <div style={styles.userInfo}>
-                <span style={styles.userIcon}>👤</span>
-                <span style={styles.userName}>{user.username}</span>
-                <span style={styles.userRole}>{role === "admin" ? "Admin" : "Cashier"}</span>
-              </div>
-              <button style={styles.logoutBtn} onClick={handleLogout}>
-                Logout
-              </button>
-            </div>
-          )}
+    {/* ── User info + logout ── */}
+    {sidebarOpen && (
+      <div style={styles.sidebarFooter}>
+        <div style={styles.userInfo}>
+          <span style={styles.userIcon}>👤</span>
+          <span style={styles.userName}>{user.username}</span>
+          <span style={styles.userRole}>{role === "admin" ? "Admin" : "Cashier"}</span>
         </div>
+        <button
+          style={styles.logoutBtn}
+          onClick={handleLogout}
+          onMouseEnter={(e) => e.currentTarget.style.background = "#fef2f2"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "#f8fafc"}
+        >
+          Logout
+        </button>
       </div>
+    )}
+  </div>
+</div>
 
       {/* ── MAIN CONTENT ── */}
-      <div className="main" style={{ flex: 1, display: "flex", justifyContent: "center", overflow: "auto", position: "relative" }}>
-        <div style={{ flex: 1, width: "100%", padding: "20px 30px" }}>
+<div className="main" style={{ flex: 1, display: "flex", justifyContent: "center", overflow: "auto", position: "relative" }}>
+  <div style={{ flex: 1, width: "100%", padding: "20px 30px" }}>
 
-          {activePage === "billing" && (
-            <Billing onInvoiceSaved={refreshInventoryData} products={products} />
-          )}
+    {activePage === "billing" && (
+      <Billing onInvoiceSaved={refreshInventoryData} products={products} />
+    )}
 
-          {activePage === "products" && canAccess("products") && (
-            <ProductList
-              products={products}
-              onDelete={role === "admin" ? deleteProduct : undefined}
-              onProductAdded={refreshInventoryData}
-              onCreateProduct={role === "admin" ? () => setPage("create-product") : undefined}
-            />
-          )}
+    {activePage === "products" && canAccess("products") && (
+      <ProductList
+        products={products}
+        onDelete={role === "admin" ? deleteProduct : undefined}
+        onProductAdded={refreshInventoryData}
+        onCreateProduct={role === "admin" ? () => setPage("create-product") : undefined}
+      />
+    )}
 
-          {activePage === "create-product" && role === "admin" && (
-            <ProductForm
-              products={products}
-              onBack={() => setPage("products")}
-              onProductAdded={() => { refreshInventoryData(); setPage("products"); }}
-            />
-          )}
+    {activePage === "create-product" && role === "admin" && (
+      <ProductForm
+        products={products}
+        onBack={() => setPage("products")}
+        onProductAdded={() => { refreshInventoryData(); setPage("products"); }}
+      />
+    )}
 
-          {activePage === "invoices" && <InvoiceList />}
+    {activePage === "invoices" && <InvoiceList />}
 
-          {activePage === "sales-return" && canAccess("sales-return") && (
-            <SalesReturn products={products} onReturnSaved={refreshInventoryData} />
-          )}
+    {activePage === "sales-return" && canAccess("sales-return") && (
+      <SalesReturn products={products} onReturnSaved={refreshInventoryData} />
+    )}
 
-          {activePage === "parties" && (
-            <Parties onOpenInvoices={() => setPage("invoices")} />
-          )}
+    {activePage === "parties" && (
+      <Parties onOpenInvoices={() => setPage("invoices")} />
+    )}
 
-          {activePage === "purchases" && role === "admin" && <PurchaseBilling />}
-          {activePage === "purchase-history" && role === "admin" && <PurchaseInvoiceList />}
-          {activePage === "purchase-return" && role === "admin" && (
-            <PurchaseReturn onReturnSaved={refreshInventoryData} />
-          )}
-          {activePage === "offers" && role === "admin" && (
-            <Offers products={products} categories={categories} />
-          )}
-          {activePage === "gst-reports" && role === "admin" && <GSTReports />}
-          {activePage === "settings" && role === "admin" && <Settings />}
-          {activePage === "users" && role === "admin" && <UserManagement />}
+    {activePage === "purchases" && canAccess("purchases") && <PurchaseBilling />}
+    {activePage === "purchase-history" && canAccess("purchase-history") && <PurchaseInvoiceList />}
+    {activePage === "purchase-return" && canAccess("purchase-return") && (
+      <PurchaseReturn onReturnSaved={refreshInventoryData} />
+    )}
+    {activePage === "offers" && canAccess("offers") && (
+      <Offers products={products} categories={categories} />
+    )}
+    {activePage === "gst-reports" && canAccess("gst-reports") && <GSTReports />}
 
+    {/* These three stay admin-only always */}
+    {activePage === "reports" && role === "admin" && <Reports />}
+    {activePage === "settings" && role === "admin" && <Settings />}
+    {activePage === "users" && role === "admin" && <UserManagement />}
+
+  </div>
+</div>
+      {/* ── LOGOUT SUMMARY MODAL ── */}
+{showLogoutSummary && sessionSummary && (
+  <div onClick={() => setShowLogoutSummary(false)} style={{
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+    display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9000
+  }}>
+    <div onClick={e => e.stopPropagation()} style={{
+      background: "#fff", borderRadius: 16, padding: 32,
+      width: 400, boxShadow: "0 25px 50px rgba(0,0,0,0.3)", textAlign: "center",
+      position: "relative"
+    }}>
+      <button onClick={() => setShowLogoutSummary(false)} style={{
+        position: "absolute", top: 12, right: 12, background: "transparent",
+        border: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af", lineHeight: 1, padding: 4
+      }}>✕</button>
+
+      <div style={{ fontSize: 36, marginBottom: 8 }}>👋</div>
+      <h3 style={{ margin: "0 0 4px", color: "#111" }}>Session Summary</h3>
+      <p style={{ margin: "0 0 20px", fontSize: 13, color: "#666" }}>
+        {sessionSummary.username} • {sessionSummary.login_at}
+      </p>
+
+      {/* Sales summary */}
+      <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 12, padding: "20px", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: "#555", marginBottom: 4 }}>Total Sales</div>
+        <div style={{ fontSize: 32, fontWeight: 700, color: "#16a34a" }}>
+          ₹{Number(sessionSummary.total_sales).toLocaleString("en-IN")}
+        </div>
+        <div style={{ fontSize: 13, color: "#666", marginTop: 8 }}>
+          {sessionSummary.invoice_count} invoice{sessionSummary.invoice_count !== 1 ? "s" : ""}
         </div>
       </div>
 
-      {/* ── LOGOUT SUMMARY MODAL ── */}
-      {showLogoutSummary && sessionSummary && (
-        <div onClick={() => setShowLogoutSummary(false)} style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-          display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9000
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background: "#fff", borderRadius: 16, padding: 32,
-            width: 380, boxShadow: "0 25px 50px rgba(0,0,0,0.3)", textAlign: "center",
-            position: "relative"
-          }}>
-            <button onClick={() => setShowLogoutSummary(false)} style={{
-              position: "absolute", top: 12, right: 12, background: "transparent",
-              border: "none", fontSize: 18, cursor: "pointer", color: "#9ca3af", lineHeight: 1, padding: 4
-            }}>✕</button>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>👋</div>
-            <h3 style={{ margin: "0 0 4px", color: "#111" }}>Session Summary</h3>
-            <p style={{ margin: "0 0 20px", fontSize: 13, color: "#666" }}>
-              {sessionSummary.username} • {sessionSummary.login_at}
-            </p>
-            <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 12, padding: "20px", marginBottom: 20 }}>
-              <div style={{ fontSize: 13, color: "#555", marginBottom: 4 }}>Total Sales</div>
-              <div style={{ fontSize: 32, fontWeight: 700, color: "#16a34a" }}>
-                ₹{Number(sessionSummary.total_sales).toLocaleString("en-IN")}
-              </div>
-              <div style={{ fontSize: 13, color: "#666", marginTop: 8 }}>
-                {sessionSummary.invoice_count} invoice{sessionSummary.invoice_count !== 1 ? "s" : ""}
-              </div>
-            </div>
-            <button onClick={doLogout} style={{
-              width: "100%", padding: "12px", borderRadius: 8, border: "none",
-              background: "#7f1d1d", color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer"
-            }}>Confirm Logout</button>
-          </div>
-        </div>
-      )}
+      {/* Backup reminder — admin only */}
+{role === "admin" && (
+  !backupDone ? (
+    <div style={{
+      background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12,
+      padding: "16px", marginBottom: 16, textAlign: "left"
+    }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
+        💾 Don't forget to backup before leaving!
+      </div>
+      <div style={{ fontSize: 12, color: "#78350f", marginBottom: 12 }}>
+        Takes just a second — protects all your data.
+      </div>
+      <button
+        onClick={handleBackupAndLogout}
+        disabled={backupReminderLoading}
+        style={{
+          width: "100%", padding: "10px", borderRadius: 8, border: "none",
+          background: backupReminderLoading ? "#d97706" : "#f59e0b",
+          color: "#fff", fontSize: 13, fontWeight: 700, cursor: backupReminderLoading ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        }}
+      >
+        {backupReminderLoading ? (
+          <>
+            <span style={{
+              display: "inline-block", width: 13, height: 13,
+              border: "2px solid rgba(255,255,255,0.4)", borderTop: "2px solid #fff",
+              borderRadius: "50%", animation: "spin 0.8s linear infinite"
+            }} />
+            Backing up…
+          </>
+        ) : "📥 Backup Now"}
+      </button>
+    </div>
+  ) : (
+    <div style={{
+      background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 12,
+      padding: "12px", marginBottom: 16, fontSize: 13, fontWeight: 600, color: "#15803d"
+    }}>
+      ✅ Backup saved! Safe to logout.
+    </div>
+  )
+)}
+
+      {/* Confirm logout — always visible */}
+      <button onClick={doLogout} style={{
+  width: "100%", padding: "12px", borderRadius: 8, border: "none",
+  background: (role === "admin" && !backupDone) ? "#e5e7eb" : "#7f1d1d",
+  color: (role === "admin" && !backupDone) ? "#6b7280" : "#fff",
+  fontSize: 15, fontWeight: 600, cursor: "pointer",
+  transition: "background 0.2s, color 0.2s"
+}}>
+  {(role === "admin" && !backupDone) ? "Skip Backup & Logout" : "Confirm Logout"}
+</button>
+    </div>
+  </div>
+)}
 
       {/* ── LAST SESSION SUMMARY ON LOGIN ── */}
       {showLoginSummary && lastSessionSummary && (
@@ -359,18 +488,18 @@ const styles = {
   sidebarFooter: {
     marginTop: 8,
     paddingTop: 16,
-    borderTop: "1px solid rgba(255,255,255,0.08)",
+    borderTop: "1px solid rgba(255,255,255,0.1)",
   },
   userInfo: {
-    display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "8px 0",
+    display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "10px 0",
   },
-  userIcon: { fontSize: 24 },
-  userName: { color: "#e2e8f0", fontWeight: 600, fontSize: 14 },
-  userRole: { color: "#64748b", fontSize: 12 },
+  userIcon: { fontSize: 26 },
+  userName: { color: "#f0f9ff", fontWeight: 600, fontSize: 14 },
+  userRole: { color: "#7dd3fc", fontSize: 12, fontWeight: 500 },
   logoutBtn: {
-    width: "100%", padding: "8px 0", marginTop: 8,
-    background: "#7f1d1d", color: "#fca5a5", border: "none",
-    borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,
+    width: "100%", padding: "10px 0", marginTop: 10,
+    background: "#f8fafc", color: "#dc2626", border: "1px solid #fee2e2",
+    borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700,
     transition: "background 0.2s",
   },
 };

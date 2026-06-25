@@ -23,9 +23,24 @@ export function generateModernA4(data, options = {}) {
     doc.setFillColor(25, 118, 210);
     doc.rect(0, 0, pageW, 1.5, "F");
     doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(25, 118, 210);
+
+// ✅ Add logo — shifts text right if logo present
+if (settings?.logo) {
+  try {
+    const ext = settings.logo.startsWith("data:image/png") ? "PNG"
+               : settings.logo.startsWith("data:image/svg") ? "SVG"
+               : "JPEG";
+    doc.addImage(settings.logo, ext, margin, 3, 22, 14, "", "FAST");
+    doc.text(settings?.business_name || "Business Name", margin + 26, 12);
+  } catch (e) {
     doc.text(settings?.business_name || "Business Name", margin, 12);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-    const addressParts = [settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ");
+  }
+} else {
+  doc.text(settings?.business_name || "Business Name", margin, 12);
+}
+
+doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
+const addressParts = [settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ");
     if (addressParts) doc.text(addressParts, margin, 17);
     let contactLine = "";
     if (settings?.phone) contactLine += `Phone: ${settings.phone}`;
@@ -178,12 +193,27 @@ export function ModernA4Preview({ data, deliveryCopy }) {
   return (
     <div className="invoice-preview" style={{ width: "210mm", minHeight: "297mm", margin: "24px auto", background: "#fff", padding: "30px 40px", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "13px", color: "#111", boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", borderBottom: "2px solid #1976d2", paddingBottom: "12px" }}>
-        <div>
-          <div style={{ fontSize: "20px", fontWeight: "700", color: "#1976d2" }}>{settings?.business_name}</div>
-          <div style={{ fontSize: "11px", color: "#555" }}>{[settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ")}</div>
-          {settings?.phone && <div style={{ fontSize: "11px" }}>📞 {settings.phone}</div>}
-          {settings?.gstin && <div style={{ fontSize: "11px", fontWeight: "600" }}>GSTIN: {settings.gstin}</div>}
-        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+  {settings?.logo && (
+    <img
+      src={settings.logo}
+      alt="Logo"
+      style={{
+        height: 110,
+        width: 150,
+        objectFit: "contain",
+        flexShrink: 0,
+        borderRadius: "6px",
+      }}
+    />
+  )}
+  <div>
+    <div style={{ fontSize: "20px", fontWeight: "700", color: "#1976d2" }}>{settings?.business_name}</div>
+    <div style={{ fontSize: "11px", color: "#555" }}>{[settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ")}</div>
+    {settings?.phone && <div style={{ fontSize: "11px" }}>📞 {settings.phone}</div>}
+    {settings?.gstin && <div style={{ fontSize: "11px", fontWeight: "600" }}>GSTIN: {settings.gstin}</div>}
+  </div>
+</div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontWeight: "700", fontSize: "16px" }}>{deliveryCopy ? "DELIVERY COPY" : "TAX INVOICE"}</div>
           <div style={{ fontSize: "11px", color: "#555" }}>Invoice #: {invoice.id}</div>

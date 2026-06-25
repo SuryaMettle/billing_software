@@ -54,41 +54,10 @@ function PurchaseInvoicePrint({ invoiceId, onBack }) {
       template.generatePDF(templateData, { shouldPrint: false });
     } catch (err) {
       console.error("PDF generation failed:", err);
-      alert("PDF download failed. Please try the Print option instead.");
+      alert("PDF download failed. Please try again.");
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  // ── PRINT ────────────────────────────────────────────────
-  const handlePrint = () => {
-    // Thermal uses PDF-based printing
-    if (templateId === "thermal-80mm") {
-      template.generatePDF(templateData, { shouldPrint: true });
-      return;
-    }
-
-    // A4 templates use HTML print window
-    const printContent = previewRef.current?.innerHTML;
-    if (!printContent) return;
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <!DOCTYPE html><html>
-        <head>
-          <title>Purchase Invoice #${invoice.id}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; background: #fff;
-              -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @media print { body { margin: 0; } @page { margin: 0; size: auto; } }
-          </style>
-        </head>
-        <body>${printContent}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
 
   return (
@@ -113,11 +82,6 @@ function PurchaseInvoicePrint({ invoiceId, onBack }) {
         }}>
           {isGenerating ? "⏳ Generating..." : "⬇ Download PDF"}
         </button>
-
-        <button onClick={handlePrint} style={{
-          padding: "8px 20px", borderRadius: "6px", border: "none",
-          background: "#2e7d32", color: "#fff", cursor: "pointer", fontWeight: "600"
-        }}>🖨️ Print Invoice</button>
 
         <span style={{
           padding: "4px 12px", borderRadius: "12px", fontSize: "12px",

@@ -20,6 +20,16 @@ async function request(path, options = {}) {
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
 
+  // Server PC is unlicensed / trial expired → block app-wide, on every
+  // machine (server's own Electron window AND every counter PC), since
+  // they all route through this same server. This check runs before the
+  // 401 check: an expired license blocks even unauthenticated requests
+  // (e.g. the login screen itself), so nobody can log in to a locked shop.
+  if (response.status === 402) {
+    window.dispatchEvent(new CustomEvent("license:locked", { detail: data }));
+    throw new Error(data?.error || "License required.");
+  }
+
   // Token expired or invalid → force logout
   if (response.status === 401) {
     clearSession();
@@ -197,6 +207,9 @@ const api = {
   // ── Reports ───────────────────────────────────────────────────────────────
   getGSTR1Data: (data) => request(`/api/reports/gstr1${queryString(data)}`),
 
+  // ── Licensing ─────────────────────────────────────────────────────────────
+  getLicenseStatus: () => request("/api/license/status"),
+
   // ── File ──────────────────────────────────────────────────────────────────
   saveFile: (data) => Promise.resolve(downloadFile(data)),
 
@@ -224,6 +237,30 @@ exportExcel: async () => {
   link.remove();
   URL.revokeObjectURL(url);
 },
+
+resetData: (data) =>
+  request("/api/admin/reset-data", { method: "POST", body: JSON.stringify(data) }),
+
+// ── Google Drive ──
+getDriveStatus: () => request("/api/drive/status"),
+driveBackup: () => request("/api/drive/backup", { method: "POST" }),
+getDriveBackups: () => request("/api/drive/backups"),
+downloadDriveBackup: (fileId) => request(`/api/drive/download/${fileId}`),
+saveDriveToken: (data) => request("/api/drive/save-token", { method: "POST", body: JSON.stringify(data) }),
+disconnectDrive: () => request("/api/drive/disconnect", { method: "POST" }),
+
+selectiveRestore: (data) =>
+  request("/api/admin/selective-restore", { method: "POST", body: JSON.stringify(data) }),
+
+getSalesSummary: (params) => request(`/api/reports/sales-summary${queryString(params)}`),
+getTopProducts: (params) => request(`/api/reports/top-products${queryString(params)}`),
+getSlowMoving: (params) => request(`/api/reports/slow-moving${queryString(params)}`),
+getLowStock: () => request("/api/reports/low-stock"),
+
+// ── Inventory & Product Trend ──
+getInventoryReport: () => request("/api/reports/inventory"),
+getProductTrend: (id, params) => request(`/api/reports/product-trend/${id}${queryString(params)}`),
+
 };
 
 export default api;

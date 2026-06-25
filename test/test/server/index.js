@@ -9,6 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from "fs";
 import * as XLSX from "xlsx";
+import Database from "better-sqlite3";
 
 console.log("Server __dirname:", new URL(import.meta.url).pathname);
 console.log("DB import path:", new URL("../electron/database.js", import.meta.url).pathname);
@@ -28,6 +29,17 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
   }
 });
+
+const RESTORE_TARGETS = {
+  offers:       ["offer_conditions", "offers"],
+  products:     ["products"],
+  customers:    ["parties"],
+  transactions: ["invoices","invoice_items","invoice_payments",
+                 "sales_returns","sales_return_items",
+                 "purchase_invoices","purchase_invoice_items","purchase_payments",
+                 "purchase_returns","purchase_return_items"],
+};
+
 
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
@@ -165,6 +177,30 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.get("/api/oauth/callback", async (req, res) => {
+  const code = req.query.code;
+  const error = req.query.error;
+
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.end(`
+    <html>
+      <body style="font-family:sans-serif;text-align:center;padding:80px;background:#f0fdf4">
+        <div style="font-size:48px;margin-bottom:16px">${error ? "❌" : "✅"}</div>
+        <h2 style="color:${error ? "#dc2626" : "#15803d"};margin:0 0 12px">
+          ${error ? "Authorization Failed" : "Connected Successfully!"}
+        </h2>
+        <p style="color:#666;font-size:15px">
+          ${error ? error : "You can close this tab and return to the POS app."}
+        </p>
+      </body>
+    </html>
+  `);
+
+  if (code && global.pendingOAuthResolve) {
+    global.pendingOAuthResolve(code);
+  }
+});
+
 // ── Start session on login ──
 // Update the login route to create a session:
 app.post("/api/auth/login", asyncRoute((req) => {
@@ -198,14 +234,16 @@ app.post("/api/auth/login", asyncRoute((req) => {
   };
 }));
 
-app.use(requireAuth);
+app.use("/api", requireAuth);
 
 app.post("/api/backup", adminOnly, asyncRoute(async () => {
   const userDataPath = process.env.USER_DATA_PATH || __dirname;
   const backupDir = path.join(userDataPath, "Backups");
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const now = new Date();
+const pad = (n) => String(n).padStart(2, "0");
+const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
   const backupPath = path.join(backupDir, `backup_${timestamp}.db`);
 
   await backupDatabase(backupPath);
@@ -251,6 +289,477 @@ app.get("/api/export-excel", adminOnly, asyncRoute(async (req, res) => {
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename=export_${Date.now()}.xlsx`);
   res.send(buffer);
+}));
+
+const RESET_TARGETS = {
+  transactions: [
+    "invoice_payments", "invoice_items", "invoices",
+    "sales_return_items", "sales_returns",
+    "purchase_payments", "purchase_invoice_items", "purchase_invoices",
+    "purchase_return_items", "purchase_returns",
+    "loyalty_ledger", "credit_redemptions", "credit_notes",
+    "return_refunds", "stock_conversions"
+  ],
+  products: ["products"],
+  customers: ["parties"],
+  offers: ["offer_conditions", "offers"]
+};
+
+app.post("/api/admin/reset-data", adminOnly, asyncRoute((req) => {
+  const { categories = [], reseed = false } = req.body || {};
+
+  const invalid = categories.filter(c => !RESET_TARGETS[c]);
+  if (invalid.length) throw Object.assign(new Error(`Unknown categories: ${invalid.join(", ")}`), { status: 400 });
+  if (!categories.length) throw Object.assign(new Error("No categories selected"), { status: 400 });
+
+  const transaction = db.transaction(() => {
+    for (const category of categories) {
+      for (const table of RESET_TARGETS[category]) {
+        db.prepare(`DELETE FROM ${table}`).run();
+      }
+    }
+
+    if (categories.includes("customers")) {
+      db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'parties'`).run();
+    }
+    if (categories.includes("transactions")) {
+      const seqTables = ["invoices","invoice_items","invoice_payments","sales_returns",
+        "sales_return_items","purchase_invoices","purchase_invoice_items",
+        "purchase_payments","purchase_returns","purchase_return_items"];
+      for (const t of seqTables) {
+        db.prepare(`DELETE FROM sqlite_sequence WHERE name = ?`).run(t);
+      }
+      db.prepare(`UPDATE parties SET balance = 0, loyalty_points = 0`).run();
+    }
+    if (categories.includes("products")) {
+      db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'products'`).run();
+    }
+
+    if (reseed) {
+      if (categories.includes("products")) {
+        db.prepare(`
+          INSERT INTO products (name, price, cost_price, tax_rate, stock, unit_type)
+          VALUES (?, ?, ?, ?, ?, 'unit')
+        `).run("Sample Item", 100, 60, 5, 50);
+      }
+      if (categories.includes("customers")) {
+        db.prepare(`
+          INSERT INTO parties (name, phone, type, balance)
+          VALUES (?, ?, 'customer', 0)
+        `).run("Walk-in Customer", "0000000000");
+      }
+    }
+  });
+
+  transaction();
+  emit("data-reset", { categories });
+  return { success: true, cleared: categories, reseeded: !!reseed };
+}));
+
+app.post("/api/admin/selective-restore", adminOnly, asyncRoute((req) => {
+  const { backupPath, categories = [] } = req.body || {};
+
+  if (!backupPath || !fs.existsSync(backupPath))
+    throw Object.assign(new Error("Backup file not found"), { status: 400 });
+
+  const invalid = categories.filter(c => !RESTORE_TARGETS[c]);
+  if (invalid.length) throw Object.assign(new Error(`Unknown categories: ${invalid.join(", ")}`), { status: 400 });
+  if (!categories.length) throw Object.assign(new Error("No categories selected"), { status: 400 });
+
+  // Validate it's a real SQLite file
+  const header = Buffer.alloc(16);
+  const fd = fs.openSync(backupPath, "r");
+  fs.readSync(fd, header, 0, 16, 0);
+  fs.closeSync(fd);
+  if (header.toString("utf8", 0, 15) !== "SQLite format 3")
+    throw Object.assign(new Error("Not a valid SQLite backup file"), { status: 400 });
+
+  const backupDb = new Database(backupPath, { readonly: true });
+
+  const transaction = db.transaction(() => {
+    for (const category of categories) {
+      for (const table of RESTORE_TARGETS[category]) {
+        // Check if table exists in backup
+        const exists = backupDb.prepare(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
+        ).get(table);
+        if (!exists) continue;
+
+        // Clear live table
+        db.prepare(`DELETE FROM ${table}`).run();
+
+        // Copy all rows from backup → live
+        const rows = backupDb.prepare(`SELECT * FROM ${table}`).all();
+        if (!rows.length) continue;
+
+        const cols = Object.keys(rows[0]);
+        const placeholders = cols.map(() => "?").join(", ");
+        const insert = db.prepare(
+          `INSERT OR IGNORE INTO ${table} (${cols.join(", ")}) VALUES (${placeholders})`
+        );
+        for (const row of rows) insert.run(Object.values(row));
+      }
+    }
+  });
+
+  transaction();
+  backupDb.close();
+
+  emit("data-reset", { categories, source: "selective-restore" });
+  return { success: true, restored: categories };
+}));
+
+// ── Google Drive Backup ──
+const { google } = await import("googleapis").catch(() => ({ google: null }));
+
+function getDriveClient(refreshToken) {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    "urn:ietf:wg:oauth:2.0:oob"
+  );
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  return google.drive({ version: "v3", auth: oauth2Client });
+}
+
+async function getOrCreateFolder(drive) {
+  // Check if POS Billing Backups folder exists
+  const res = await drive.files.list({
+    q: "name='POS Billing Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+    fields: "files(id, name)",
+  });
+
+  if (res.data.files.length > 0) {
+    return res.data.files[0].id;
+  }
+
+  // Create it
+  const folder = await drive.files.create({
+    requestBody: {
+      name: "POS Billing Backups",
+      mimeType: "application/vnd.google-apps.folder",
+    },
+    fields: "id",
+  });
+
+  return folder.data.id;
+}
+
+app.post("/api/drive/backup", adminOnly, asyncRoute(async () => {
+  const settings = db.prepare(`SELECT google_refresh_token FROM settings WHERE id = 1`).get();
+  if (!settings?.google_refresh_token)
+    throw Object.assign(new Error("Google Drive not connected"), { status: 400 });
+
+  const userDataPath = process.env.USER_DATA_PATH || __dirname;
+  const backupDir = path.join(userDataPath, "Backups");
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+  const backupPath = path.join(backupDir, `backup_${timestamp}.db`);
+
+  // Save local backup first
+  await backupDatabase(backupPath);
+
+  // Upload to Drive
+  const drive = getDriveClient(settings.google_refresh_token);
+  const folderId = await getOrCreateFolder(drive);
+
+  const fileStream = fs.createReadStream(backupPath);
+  const uploaded = await drive.files.create({
+    requestBody: {
+      name: `backup_${timestamp}.db`,
+      parents: [folderId],
+    },
+    media: {
+      mimeType: "application/octet-stream",
+      body: fileStream,
+    },
+    fields: "id, name, createdTime, size",
+  });
+
+  return {
+    success: true,
+    localPath: backupPath,
+    driveFileId: uploaded.data.id,
+    fileName: uploaded.data.name,
+  };
+}));
+
+app.get("/api/drive/backups", adminOnly, asyncRoute(async () => {
+  const settings = db.prepare(`SELECT google_refresh_token FROM settings WHERE id = 1`).get();
+  if (!settings?.google_refresh_token)
+    throw Object.assign(new Error("Google Drive not connected"), { status: 400 });
+
+  const drive = getDriveClient(settings.google_refresh_token);
+  const folderId = await getOrCreateFolder(drive);
+
+  const res = await drive.files.list({
+    q: `'${folderId}' in parents and trashed=false`,
+    fields: "files(id, name, createdTime, size)",
+    orderBy: "createdTime desc",
+  });
+
+  return res.data.files;
+}));
+
+app.get("/api/drive/download/:fileId", adminOnly, asyncRoute(async (req, res) => {
+  const settings = db.prepare(`SELECT google_refresh_token FROM settings WHERE id = 1`).get();
+  if (!settings?.google_refresh_token)
+    throw Object.assign(new Error("Google Drive not connected"), { status: 400 });
+
+  const drive = getDriveClient(settings.google_refresh_token);
+
+  const userDataPath = process.env.USER_DATA_PATH || __dirname;
+  const tempPath = path.join(userDataPath, `drive_restore_${Date.now()}.db`);
+
+  const dest = fs.createWriteStream(tempPath);
+  const driveRes = await drive.files.get(
+    { fileId: req.params.fileId, alt: "media" },
+    { responseType: "stream" }
+  );
+
+  await new Promise((resolve, reject) => {
+    driveRes.data.pipe(dest);
+    dest.on("finish", resolve);
+    dest.on("error", reject);
+  });
+
+  return { success: true, localPath: tempPath };
+}));
+
+app.post("/api/drive/disconnect", adminOnly, asyncRoute(() => {
+  db.prepare(`
+    UPDATE settings SET google_refresh_token = NULL, google_email = NULL WHERE id = 1
+  `).run();
+  return { success: true };
+}));
+
+app.post("/api/drive/save-token", adminOnly, asyncRoute((req) => {
+  const { refreshToken, email } = req.body || {};
+  db.prepare(`
+    UPDATE settings SET google_refresh_token = ?, google_email = ? WHERE id = 1
+  `).run(refreshToken, email);
+  return { success: true };
+}));
+
+app.get("/api/drive/status", adminOnly, asyncRoute(() => {
+  const settings = db.prepare(`
+    SELECT google_refresh_token, google_email FROM settings WHERE id = 1
+  `).get();
+  return {
+    connected: !!settings?.google_refresh_token,
+    email: settings?.google_email || null,
+  };
+}));
+
+function getDateGroupExpr(period) {
+  if (period === "weekly") {
+    return "date(created_at, 'localtime', '-' || ((CAST(strftime('%w', created_at, 'localtime') AS INTEGER) + 6) % 7) || ' days')";
+  }
+  if (period === "monthly") return "strftime('%Y-%m', created_at, 'localtime')";
+  return "date(created_at, 'localtime')";
+}
+app.get("/api/reports/sales-summary", adminOnly, asyncRoute((req) => {
+  const { period = "daily", from, to } = req.query;
+  const groupExpr = getDateGroupExpr(period);
+
+  let dateFilter = "";
+  const params = [];
+  if (from) { dateFilter += " AND date(created_at, 'localtime') >= ?"; params.push(from); }
+  if (to)   { dateFilter += " AND date(created_at, 'localtime') <= ?"; params.push(to); }
+
+  const sales = db.prepare(`
+    SELECT ${groupExpr} AS period, SUM(total) AS sales_total, COUNT(*) AS invoice_count
+    FROM invoices
+    WHERE 1=1 ${dateFilter}
+    GROUP BY period
+    ORDER BY period ASC
+  `).all(...params);
+
+  const purchases = db.prepare(`
+    SELECT ${groupExpr} AS period, SUM(total) AS purchase_total, COUNT(*) AS purchase_count
+    FROM purchase_invoices
+    WHERE 1=1 ${dateFilter}
+    GROUP BY period
+    ORDER BY period ASC
+  `).all(...params);
+
+  const profit = db.prepare(`
+    SELECT ${groupExpr.replace(/created_at/g, "invoices.created_at")} AS period,
+           COALESCE(SUM(invoice_items.profit), 0) AS profit
+    FROM invoices
+    LEFT JOIN invoice_items ON invoices.id = invoice_items.invoice_id
+    WHERE 1=1 ${dateFilter.replace(/created_at/g, "invoices.created_at")}
+    GROUP BY period
+    ORDER BY period ASC
+  `).all(...params);
+
+  const merged = {};
+  for (const row of sales) {
+    merged[row.period] = { period: row.period, sales: row.sales_total || 0, invoiceCount: row.invoice_count, purchases: 0, purchaseCount: 0, profit: 0 };
+  }
+  for (const row of purchases) {
+    if (!merged[row.period]) merged[row.period] = { period: row.period, sales: 0, invoiceCount: 0, purchases: 0, purchaseCount: 0, profit: 0 };
+    merged[row.period].purchases = row.purchase_total || 0;
+    merged[row.period].purchaseCount = row.purchase_count;
+  }
+  for (const row of profit) {
+    if (merged[row.period]) merged[row.period].profit = row.profit || 0;
+  }
+
+  return Object.values(merged).sort((a, b) => a.period.localeCompare(b.period));
+}));
+
+app.get("/api/reports/top-products", adminOnly, asyncRoute((req) => {
+  const { from, to, limit = 10, sortBy = "revenue" } = req.query;
+
+  let dateFilter = "";
+  const params = [];
+  if (from) { dateFilter += " AND date(invoices.created_at, 'localtime') >= ?"; params.push(from); }
+  if (to)   { dateFilter += " AND date(invoices.created_at, 'localtime') <= ?"; params.push(to); }
+
+  const orderCol = sortBy === "quantity" ? "total_qty" : "total_revenue";
+
+  return db.prepare(`
+    SELECT
+      products.id,
+      products.name,
+      SUM(invoice_items.quantity) AS total_qty,
+      SUM(invoice_items.price * invoice_items.quantity) AS total_revenue
+    FROM invoice_items
+    JOIN invoices ON invoice_items.invoice_id = invoices.id
+    JOIN products ON invoice_items.product_id = products.id
+    WHERE invoice_items.is_free = 0 ${dateFilter}
+    GROUP BY products.id
+    ORDER BY ${orderCol} DESC
+    LIMIT ?
+  `).all(...params, Number(limit));
+}));
+
+app.get("/api/reports/slow-moving", adminOnly, asyncRoute((req) => {
+  const { days = 30 } = req.query;
+
+  return db.prepare(`
+    SELECT
+      products.id,
+      products.name,
+      products.stock,
+      MAX(invoices.created_at) AS last_sold_at
+    FROM products
+    LEFT JOIN invoice_items ON invoice_items.product_id = products.id
+    LEFT JOIN invoices ON invoice_items.invoice_id = invoices.id
+    GROUP BY products.id
+    HAVING last_sold_at IS NULL
+        OR julianday('now') - julianday(last_sold_at) >= ?
+    ORDER BY last_sold_at ASC
+  `).all(Number(days));
+}));
+
+app.get("/api/reports/low-stock", adminOnly, asyncRoute(() => {
+  return db.prepare(`
+    SELECT id, name, stock, min_stock, category
+    FROM products
+    WHERE stock <= min_stock
+    ORDER BY stock ASC
+  `).all();
+}));
+
+// ── Product revenue trend (for top products detail page) ──
+app.get("/api/reports/product-trend/:id", adminOnly, asyncRoute((req) => {
+  const productId = Number(req.params.id);
+  const { from, to } = req.query;
+
+  let dateFilter = "";
+  const params = [productId];
+  if (from) { dateFilter += " AND date(invoices.created_at, 'localtime') >= ?"; params.push(from); }
+  if (to)   { dateFilter += " AND date(invoices.created_at, 'localtime') <= ?"; params.push(to); }
+
+  const trend = db.prepare(`
+    SELECT
+      date(invoices.created_at, 'localtime') AS period,
+      SUM(invoice_items.quantity) AS qty_sold,
+      SUM(invoice_items.price * invoice_items.quantity) AS revenue
+    FROM invoice_items
+    JOIN invoices ON invoice_items.invoice_id = invoices.id
+    WHERE invoice_items.product_id = ?
+      AND invoice_items.is_free = 0
+      ${dateFilter}
+    GROUP BY period
+    ORDER BY period ASC
+  `).all(...params);
+
+  const product = db.prepare(`
+    SELECT id, name, stock, min_stock, category, cost_price, price, hsn_code, unit_type, expiry_date
+    FROM products WHERE id = ?
+  `).get(productId);
+
+  return { product, trend };
+}));
+
+// ── Inventory reports ──
+app.get("/api/reports/inventory", adminOnly, asyncRoute(() => {
+
+  // Category-wise stock summary
+  const categoryStock = db.prepare(`
+    SELECT
+      COALESCE(NULLIF(TRIM(category), ''), 'Uncategorized') AS category,
+      COUNT(*) AS product_count,
+      SUM(stock) AS total_stock,
+      SUM(stock * cost_price) AS stock_value
+    FROM products
+    GROUP BY category
+    ORDER BY stock_value DESC
+  `).all();
+
+  // Expiry alerts — products expiring within 30 days or already expired
+  const today = new Date().toISOString().slice(0, 10);
+  const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const expiryAlerts = db.prepare(`
+    SELECT id, name, stock, category, expiry_date,
+      CASE
+        WHEN expiry_date < ? THEN 'expired'
+        WHEN expiry_date <= ? THEN 'expiring_soon'
+        ELSE 'ok'
+      END AS expiry_status
+    FROM products
+    WHERE expiry_date IS NOT NULL AND TRIM(expiry_date) != ''
+      AND expiry_date <= ?
+    ORDER BY expiry_date ASC
+  `).all(today, in30, in30);
+
+  // Stock movement — per product: purchased qty, sold qty, returned qty, net stock
+  const movement = db.prepare(`
+    SELECT
+      p.id,
+      p.name,
+      p.category,
+      p.stock AS current_stock,
+      COALESCE(sold.qty, 0) AS sold_qty,
+      COALESCE(purchased.qty, 0) AS purchased_qty,
+      COALESCE(returned.qty, 0) AS returned_qty
+    FROM products p
+    LEFT JOIN (
+      SELECT product_id, SUM(quantity) AS qty
+      FROM invoice_items WHERE is_free = 0
+      GROUP BY product_id
+    ) sold ON sold.product_id = p.id
+    LEFT JOIN (
+      SELECT product_id, SUM(quantity) AS qty
+      FROM purchase_invoice_items
+      GROUP BY product_id
+    ) purchased ON purchased.product_id = p.id
+    LEFT JOIN (
+      SELECT product_id, SUM(quantity) AS qty
+      FROM sales_return_items
+      GROUP BY product_id
+    ) returned ON returned.product_id = p.id
+    ORDER BY sold_qty DESC
+  `).all();
+
+  return { categoryStock, expiryAlerts, movement };
 }));
 
 app.get("/api/products", asyncRoute(() => {
@@ -810,23 +1319,19 @@ app.get("/api/settings", asyncRoute(() => {
 app.put("/api/settings", adminOnly, asyncRoute((req) => {
   const data = req.body || {};
   db.prepare(`
-    UPDATE settings
-    SET business_name = ?, phone = ?, email = ?, address = ?, city = ?, state = ?, pincode = ?, gstin = ?,
-        loyalty_earn_rate = ?, loyalty_redeem_value = ?, invoice_template = ?
-    WHERE id = 1
-  `).run(
-    data.business_name,
-    data.phone,
-    data.email,
-    data.address,
-    data.city,
-    data.state,
-    data.pincode,
-    data.gstin,
-    data.loyalty_earn_rate ?? 0.01,
-    data.loyalty_redeem_value ?? 1.0,
-    data.invoice_template ?? "modern-a4"
-  );
+  UPDATE settings
+  SET business_name = ?, phone = ?, email = ?, address = ?, city = ?, state = ?, pincode = ?, gstin = ?,
+      loyalty_earn_rate = ?, loyalty_redeem_value = ?, invoice_template = ?,
+      logo = ?
+  WHERE id = 1
+`).run(
+  data.business_name, data.phone, data.email, data.address,
+  data.city, data.state, data.pincode, data.gstin,
+  data.loyalty_earn_rate ?? 0.01,
+  data.loyalty_redeem_value ?? 1.0,
+  data.invoice_template ?? "modern-a4",
+  data.logo ?? ""
+);
   emit("settings-updated", {});
   return { success: true };
 }));
@@ -970,6 +1475,17 @@ app.post("/api/purchase-invoices", adminOnly, asyncRoute((req) => {
   const invoiceId = result.lastInsertRowid;
   const balanceChange = total - paid_amount;
   db.prepare(`UPDATE parties SET balance = balance - ? WHERE id = ?`).run(balanceChange, party_id);
+
+  const paymentStmt = db.prepare(`
+    INSERT INTO purchase_payments (invoice_id, amount, mode, note, created_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+  `);
+  const incomingPayments = req.body.payments || [];
+  for (const p of incomingPayments) {
+    if (Number(p.amount) > 0) {
+      paymentStmt.run(invoiceId, p.amount, p.mode, "Purchase payment");
+    }
+  }
 
   const itemStmt = db.prepare(`
     INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, quantity, price)
@@ -1570,10 +2086,15 @@ app.get("/api/auth/last-session", asyncRoute((req) => {
 }));
 
 // ── Serve Vite build (must be after all API routes) ──
-app.use(express.static(path.join(__dirname, '../dist')));
+const distPath = process.env.DIST_PATH || path.join(__dirname, '../dist');
+console.log('DIST_PATH env:', process.env.DIST_PATH);
+console.log('distPath resolved:', distPath);
+console.log('index.html exists:', fs.existsSync(path.join(distPath, 'index.html')));
+
+app.use(express.static(distPath));
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
-  res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 app.use((req, res) => {

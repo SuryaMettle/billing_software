@@ -23,7 +23,19 @@ export function generateClassicA4(data, options = {}) {
     doc.line(margin, 8, pageW - margin, 8); doc.setLineWidth(0.4);
     doc.line(margin, 10, pageW - margin, 10);
     doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(0, 0, 0);
+if (settings?.logo) {
+  try {
+    const ext = settings.logo.startsWith("data:image/png") ? "PNG"
+               : settings.logo.startsWith("data:image/svg") ? "SVG"
+               : "JPEG";
+    doc.addImage(settings.logo, ext, pageW / 2 - 15, 8, 30, 12, "", "FAST");
+    doc.text(settings?.business_name || "Business Name", pageW / 2, 24, { align: "center" });
+  } catch (e) {
     doc.text(settings?.business_name || "Business Name", pageW / 2, 18, { align: "center" });
+  }
+} else {
+  doc.text(settings?.business_name || "Business Name", pageW / 2, 18, { align: "center" });
+}
     doc.setFont("helvetica", "normal"); doc.setFontSize(8);
     const addressParts = [settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ");
     if (addressParts) doc.text(addressParts, pageW / 2, 23, { align: "center" });
@@ -153,7 +165,17 @@ export function ClassicA4Preview({ data, deliveryCopy }) {
   return (
     <div className="invoice-preview" style={{ width: "210mm", minHeight: "297mm", margin: "24px auto", background: "#fff", padding: "20px 30px", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: "12px", color: "#000", boxSizing: "border-box", fontFamily: "serif" }}>
       <div style={{ borderTop: "3px solid #000", borderBottom: "1px solid #000", paddingBottom: "8px", marginBottom: "4px", textAlign: "center" }}>
-        <div style={{ fontSize: "22px", fontWeight: "700", marginTop: "8px" }}>{settings?.business_name || "Business Name"}</div>
+        {settings?.logo && (
+  <img
+    src={settings.logo}
+    alt="Logo"
+    style={{
+      height: 56, maxWidth: 140, objectFit: "contain",
+      marginTop: 8, marginBottom: 4, display: "block", margin: "8px auto 4px",
+    }}
+  />
+)}
+<div style={{ fontSize: "22px", fontWeight: "700", marginTop: "8px" }}>{settings?.business_name || "Business Name"}</div>
         <div style={{ fontSize: "11px" }}>{[settings?.address, settings?.city, settings?.state, settings?.pincode].filter(Boolean).join(", ")}</div>
         {settings?.phone && <div style={{ fontSize: "11px" }}>Ph: {settings.phone}</div>}
         {settings?.gstin && <div style={{ fontSize: "11px", fontWeight: "700" }}>GSTIN: {settings.gstin}</div>}

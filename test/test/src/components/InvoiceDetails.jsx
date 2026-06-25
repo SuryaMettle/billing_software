@@ -23,6 +23,8 @@ const [creditAmount, setCreditAmount] = useState("");
 const [showRedeemModal, setShowRedeemModal] = useState(false);
 const [redeemAmount, setRedeemAmount] = useState("");
 const [redeemNote, setRedeemNote] = useState("");
+const [itemsPage, setItemsPage] = useState(1);
+const itemsPerPage = 5;
 
   useEffect(() => {
     loadDetails();
@@ -168,7 +170,7 @@ if (showDeliveryCopy) {
           }}
         >
           <div><strong>Date:</strong></div>
-          <div style={{ textAlign: "right" }}>{data.invoice.created_at}</div>
+          <div style={{ textAlign: "right" }}>{new Date(data.invoice.created_at + " UTC").toLocaleString()}</div>
 
           <div><strong>Party Name:</strong></div>
           <div style={{ textAlign: "right" }}>{data.invoice.party_name || "N/A"}</div>
@@ -232,24 +234,54 @@ if (showDeliveryCopy) {
           </div>
         </div>
 
-        <h3 style={{ marginBottom: "10px" }}>Items</h3>
-        <div style={{ borderTop: "1px solid #eee", borderBottom: "1px solid #eee" }}>
-          {data.items.map((item, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "10px 0",
-                borderBottom: "1px solid #f5f5f5",
-              }}
-            >
-              <span>{item.name} × {item.quantity}</span>
-              <span>₹{Number(item.price * item.quantity).toLocaleString("en-IN")}</span>
-            </div>
-          ))}
-        </div>
+        {/* Items */}
+<h3 style={{ marginBottom: "10px" }}>Items</h3>
+<div style={{ borderTop: "1px solid #eee", borderBottom: "1px solid #eee" }}>
+  {data.items
+    .slice((itemsPage - 1) * itemsPerPage, itemsPage * itemsPerPage)
+    .map((item, i) => (
+      <div
+        key={i}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          padding: "10px 0",
+          borderBottom: "1px solid #f5f5f5",
+        }}
+      >
+        <span>{item.name} × {item.quantity}</span>
+        <span>₹{Number(item.price * item.quantity).toLocaleString("en-IN")}</span>
+      </div>
+    ))}
+</div>
 
+{/* Items Pagination */}
+{data.items.length > itemsPerPage && (
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px", marginBottom: "4px" }}>
+    <span style={{ fontSize: "12px", color: "#999" }}>
+      Showing {(itemsPage - 1) * itemsPerPage + 1}–{Math.min(itemsPage * itemsPerPage, data.items.length)} of {data.items.length} items
+    </span>
+    <div style={{ display: "flex", gap: "6px" }}>
+      <button
+        onClick={() => setItemsPage(p => Math.max(p - 1, 1))}
+        disabled={itemsPage === 1}
+        style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #ddd", background: itemsPage === 1 ? "#f5f5f5" : "#fff", color: itemsPage === 1 ? "#bbb" : "#333", cursor: itemsPage === 1 ? "not-allowed" : "pointer", fontSize: "12px" }}
+      >
+        ← Prev
+      </button>
+      <span style={{ fontSize: "12px", padding: "4px 8px", color: "#555" }}>
+        {itemsPage} / {Math.ceil(data.items.length / itemsPerPage)}
+      </span>
+      <button
+        onClick={() => setItemsPage(p => Math.min(p + 1, Math.ceil(data.items.length / itemsPerPage)))}
+        disabled={itemsPage === Math.ceil(data.items.length / itemsPerPage)}
+        style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #ddd", background: itemsPage === Math.ceil(data.items.length / itemsPerPage) ? "#f5f5f5" : "#fff", color: itemsPage === Math.ceil(data.items.length / itemsPerPage) ? "#bbb" : "#333", cursor: itemsPage === Math.ceil(data.items.length / itemsPerPage) ? "not-allowed" : "pointer", fontSize: "12px" }}
+      >
+        Next →
+      </button>
+    </div>
+  </div>
+)}
         {data.returns?.length > 0 && (
           <>
             <h3 style={{ marginTop: "25px", marginBottom: "10px", color: "#880e4f" }}>
@@ -437,128 +469,228 @@ if (showDeliveryCopy) {
 )}
 
         {showPaymentModal && (
-          <div
-            onClick={() => setShowPaymentModal(false)}
+  <div
+    onClick={() => setShowPaymentModal(false)}
+    style={{
+      position: "fixed", inset: 0,
+      background: "rgba(47,47,46,0.40)",
+      backdropFilter: "blur(6px)",
+      display: "flex", justifyContent: "center", alignItems: "center",
+      zIndex: 2000,
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        width: "420px", background: "#fff",
+        borderRadius: "20px", padding: "28px",
+        boxShadow: "0 32px 80px rgba(47,47,46,0.20)",
+        border: "1px solid #DEDBD4",
+      }}
+    >
+      {/* Modal Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "22px" }}>
+        <div style={{
+          width: "44px", height: "44px", borderRadius: "12px",
+          background: "linear-gradient(135deg, #B8C6FB 0%, #C9B8FB 100%)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "20px", flexShrink: 0,
+          boxShadow: "0 4px 14px rgba(124,156,246,0.25)",
+        }}>💳</div>
+        <div>
+          <div style={{ fontWeight: "800", fontSize: "17px", color: "#2F2F2E" }}>
+            Add Payment
+          </div>
+          <div style={{ fontSize: "12px", color: "#9B9A94", marginTop: "2px" }}>
+            Invoice #{data.invoice.id} · Balance ₹{balance.toLocaleString("en-IN")}
+          </div>
+        </div>
+      </div>
+
+      {/* Outstanding balance banner */}
+      {balance > 0 && (
+        <div style={{
+          background: "#FBEAE8", border: "1px solid #F3CBC6",
+          borderRadius: "12px", padding: "14px 18px",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          marginBottom: "20px",
+        }}>
+          <div style={{ fontSize: "12px", fontWeight: "700", color: "#D8635A", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+            Outstanding Balance
+          </div>
+          <div style={{ fontSize: "22px", fontWeight: "800", color: "#D8635A" }}>
+            ₹{balance.toLocaleString("en-IN")}
+          </div>
+        </div>
+      )}
+
+      {/* Amount */}
+      <div style={{ marginBottom: "16px" }}>
+        <label style={{
+          display: "block", fontSize: "11px", fontWeight: "700",
+          letterSpacing: "0.7px", textTransform: "uppercase",
+          color: "#6F6E69", marginBottom: "7px",
+        }}>Amount</label>
+        <div style={{ position: "relative" }}>
+          <span style={{
+            position: "absolute", left: "13px", top: "50%",
+            transform: "translateY(-50%)",
+            fontSize: "14px", fontWeight: "700", color: "#9B9A94",
+          }}>₹</span>
+          <input
+            type="number"
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            placeholder="0.00"
+            max={balance}
             style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.5)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 2000,
-              backdropFilter: "blur(4px)",
+              width: "100%", boxSizing: "border-box",
+              padding: "11px 14px 11px 28px",
+              border: "1.5px solid #E8E6E1", borderRadius: "10px",
+              fontSize: "15px", fontWeight: "700", color: "#2F2F2E",
+              background: "#FBFAF8", outline: "none",
+              transition: "all 0.15s",
             }}
-          >
+            onFocus={(e) => {
+              e.target.style.borderColor = "#7C9CF6";
+              e.target.style.boxShadow = "0 0 0 3px rgba(124,156,246,0.14)";
+              e.target.style.background = "#fff";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "#E8E6E1";
+              e.target.style.boxShadow = "none";
+              e.target.style.background = "#FBFAF8";
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Payment Mode */}
+      <div style={{ marginBottom: "16px" }}>
+        <label style={{
+          display: "block", fontSize: "11px", fontWeight: "700",
+          letterSpacing: "0.7px", textTransform: "uppercase",
+          color: "#6F6E69", marginBottom: "7px",
+        }}>Payment Mode</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+          {[
+            { value: "cash", label: "Cash", icon: "💵" },
+            { value: "upi",  label: "UPI",  icon: "📱" },
+            { value: "card", label: "Card", icon: "💳" },
+            { value: "bank", label: "Bank", icon: "🏦" },
+          ].map(({ value, label, icon }) => (
             <div
-              onClick={(e) => e.stopPropagation()}
+              key={value}
+              onClick={() => setPaymentMode(value)}
               style={{
-                width: "420px",
-                background: "#fff",
-                borderRadius: "16px",
-                padding: "24px",
-                boxShadow: "0 25px 50px rgba(0,0,0,0.25)",
+                padding: "10px 6px", borderRadius: "10px",
+                textAlign: "center", cursor: "pointer",
+                border: paymentMode === value
+                  ? "2px solid #7C9CF6"
+                  : "1.5px solid #E8E6E1",
+                background: paymentMode === value
+                  ? "rgba(124,156,246,0.10)"
+                  : "#FBFAF8",
+                transition: "all 0.15s",
               }}
             >
-              <h3 style={{ marginTop: 0 }}>Add Payment</h3>
-
-              <div
-                style={{
-                  background: "#fce4ec",
-                  color: "#880e4f",
-                  padding: "14px",
-                  borderRadius: "12px",
-                  textAlign: "center",
-                  marginBottom: "20px",
-                }}
-              >
-                <div style={{ fontSize: "12px", marginBottom: "4px" }}>Outstanding Balance</div>
-                <div style={{ fontSize: "24px", fontWeight: "700" }}>
-                  ₹{balance.toLocaleString("en-IN")}
-                </div>
-              </div>
-
-              <label>Amount</label>
-              <input
-                type="number"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                placeholder="0.00"
-                max={balance}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  marginTop: "5px",
-                  marginBottom: "12px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                  boxSizing: "border-box",
-                }}
-              />
-
-              <label>Payment Mode</label>
-              <select
-                value={paymentMode}
-                onChange={(e) => setPaymentMode(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  marginTop: "5px",
-                  marginBottom: "12px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                }}
-              >
-                <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
-                <option value="card">Card</option>
-                <option value="bank">Bank Transfer</option>
-              </select>
-
-              <label>Note (optional)</label>
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="e.g. Advance payment"
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  marginTop: "5px",
-                  marginBottom: "15px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                  boxSizing: "border-box",
-                }}
-              />
-
-              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <button onClick={() => setShowPaymentModal(false)}>
-                  Cancel
-                </button>
-
-                <button
-                  onClick={async () => {
-                    await api.addInvoicePayment({
-                      invoice_id: data.invoice.id,
-                      amount: Number(paymentAmount),
-                      mode: paymentMode,
-                      note,
-                    });
-
-                    setShowPaymentModal(false);
-                    setPaymentAmount("");
-                    setNote("");
-                    loadDetails();
-                  }}
-                  disabled={!paymentAmount || Number(paymentAmount) <= 0}
-                >
-                  Save Payment
-                </button>
-              </div>
+              <div style={{ fontSize: "18px", marginBottom: "4px" }}>{icon}</div>
+              <div style={{
+                fontSize: "11px", fontWeight: "700",
+                color: paymentMode === value ? "#3A3A6E" : "#6F6E69",
+              }}>{label}</div>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
+      </div>
+
+      {/* Note */}
+      <div style={{ marginBottom: "24px" }}>
+        <label style={{
+          display: "block", fontSize: "11px", fontWeight: "700",
+          letterSpacing: "0.7px", textTransform: "uppercase",
+          color: "#6F6E69", marginBottom: "7px",
+        }}>
+          Note{" "}
+          <span style={{ fontSize: "10px", fontWeight: "400", textTransform: "none", color: "#9B9A94" }}>
+            (optional)
+          </span>
+        </label>
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Advance payment"
+          style={{
+            width: "100%", boxSizing: "border-box",
+            padding: "11px 14px",
+            border: "1.5px solid #E8E6E1", borderRadius: "10px",
+            fontSize: "14px", color: "#2F2F2E",
+            background: "#FBFAF8", outline: "none",
+            transition: "all 0.15s",
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = "#7C9CF6";
+            e.target.style.boxShadow = "0 0 0 3px rgba(124,156,246,0.14)";
+            e.target.style.background = "#fff";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "#E8E6E1";
+            e.target.style.boxShadow = "none";
+            e.target.style.background = "#FBFAF8";
+          }}
+        />
+      </div>
+
+      {/* Buttons */}
+      <div style={{ display: "flex", gap: "10px" }}>
+        <button
+          onClick={() => setShowPaymentModal(false)}
+          style={{
+            flex: 1, padding: "11px", borderRadius: "10px",
+            border: "1px solid #E8E6E1", background: "#F6F5F2",
+            color: "#6F6E69", fontWeight: "600", fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            await api.addInvoicePayment({
+              invoice_id: data.invoice.id,
+              amount: Number(paymentAmount),
+              mode: paymentMode,
+              note,
+            });
+            setShowPaymentModal(false);
+            setPaymentAmount("");
+            setNote("");
+            loadDetails();
+          }}
+          disabled={!paymentAmount || Number(paymentAmount) <= 0}
+          style={{
+            flex: 1, padding: "11px", borderRadius: "10px",
+            border: "none",
+            background: !paymentAmount || Number(paymentAmount) <= 0
+              ? "#E8E6E1"
+              : "linear-gradient(135deg, #B8C6FB 0%, #C9B8FB 100%)",
+            color: !paymentAmount || Number(paymentAmount) <= 0
+              ? "#9B9A94" : "#3A3A6E",
+            fontWeight: "700", fontSize: "14px",
+            cursor: !paymentAmount || Number(paymentAmount) <= 0
+              ? "not-allowed" : "pointer",
+            boxShadow: !paymentAmount || Number(paymentAmount) <= 0
+              ? "none" : "0 4px 14px rgba(124,156,246,0.25)",
+            transition: "all 0.15s",
+          }}
+        >
+          Save Payment
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
 
       {/* ── TO PAY MODAL ── */}

@@ -3,17 +3,43 @@ import { useEffect, useState, useCallback } from "react";
 import api from "../services/api.js";
 
 const STATUS_COLORS = {
-  sale: { 
+  no_return: { 
     bg: "linear-gradient(135deg, #EAF3DE 0%, #D4E8C2 100%)", 
     color: "#3B6D11", 
-    label: "No returns" 
+    label: "✓ No returns" 
   },
   partial: { 
     bg: "linear-gradient(135deg, #FAEEDA 0%, #F0D4A2 100%)", 
     color: "#854F0B", 
-    label: "Partial return" 
+    label: "⚠ Partial return" 
+  },
+  returned: { 
+    bg: "linear-gradient(135deg, #FBEAE8 0%, #F3CBC6 100%)", 
+    color: "#991B1B", 
+    label: "↩ Returned" 
   },
 };
+
+// Formats a money value to at most 2 decimal places, without trailing zeros
+// e.g. 28.5 -> "28.5", 29 -> "29", 28.504 -> "28.5", 28.555 -> "28.56"
+function formatMoney(value) {
+  const rounded = Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+  return rounded.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+}
+
+// Returns the price-per-unit the customer actually paid for this item,
+// taking any line-level discount/offer into account.
+// Falls back to the listed price/rate if a discounted total isn't available.
+function getEffectiveUnitPrice(item) {
+  const qty = Number(item.quantity || 0);
+  const lineTotal = Number(item.total);
+
+  if (qty > 0 && !Number.isNaN(lineTotal) && lineTotal >= 0) {
+    return lineTotal / qty;
+  }
+
+  return Number(item.price || item.rate || 0);
+}
 
 function Toast({ message, visible }) {
   return (
@@ -94,6 +120,8 @@ function SalesReturn({ products, onReturnSaved }) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadInvoices();
@@ -127,6 +155,14 @@ function SalesReturn({ products, onReturnSaved }) {
     );
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedInvoices = filteredInvoices.slice(startIndex, startIndex + itemsPerPage);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
+
   const selectInvoice = async (invoiceId) => {
     if (selectedInvoice?.id === invoiceId) return;
     setLoading(true);
@@ -134,7 +170,11 @@ function SalesReturn({ products, onReturnSaved }) {
       const data = await api.getInvoiceDetails(invoiceId);
       setSelectedInvoice(data.invoice);
       setInvoiceItems(
-        data.items.map((item) => ({ ...item, returnQty: 0 }))
+        data.items.map((item) => ({
+          ...item,
+          returnQty: 0,
+          unitPrice: getEffectiveUnitPrice(item),
+        }))
       );
     } catch (err) {
       showToast("Failed to load invoice details");
@@ -170,7 +210,7 @@ function SalesReturn({ products, onReturnSaved }) {
         items: returnedItems,
       });
       showToast(
-        `✅ Return processed — ₹${totalRefund.toLocaleString("en-IN")} refunded`
+        `✅ Return processed — ₹${formatMoney(totalRefund)} refunded`
       );
       setSelectedInvoice(null);
       setInvoiceItems([]);
@@ -183,10 +223,18 @@ function SalesReturn({ products, onReturnSaved }) {
     }
   };
 
-  const totalRefund = invoiceItems.reduce(
-    (sum, item) => sum + item.returnQty * (item.price || item.rate || 0),
-    0
-  );
+  const paidAmount = Number(selectedInvoice?.paid_amount || 0);
+const invoiceTotal = Number(selectedInvoice?.total || 0);
+
+const returnValue = invoiceItems.reduce(
+  (sum, item) => sum + item.returnQty * item.unitPrice,
+  0
+);
+
+const netOwed = invoiceTotal - paidAmount;           // 110 - 50 = 60
+const totalRefund = Math.max(0, returnValue - netOwed); // max(0, 55 - 60) = 0
+const adjustedOwed = Math.max(0, netOwed - returnValue); // max(0, 60 - 55) = 5
+const unpaidPortion = adjustedOwed;
   const selectedItemsCount = invoiceItems.filter((i) => i.returnQty > 0).length;
 
   return (
@@ -198,55 +246,55 @@ function SalesReturn({ products, onReturnSaved }) {
       minHeight: "100vh"
     }}>
       {/* Header */}
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        justifyContent: "space-between", 
-        marginBottom: "2rem",
-        background: "rgba(255,255,255,0.9)",
-        backdropFilter: "blur(20px)",
-        padding: "20px 24px",
-        borderRadius: 20,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-        border: "1px solid rgba(255,255,255,0.3)"
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div>
-            <h1 style={{ 
-              fontSize: 28, 
-              fontWeight: 700, 
-              margin: 0,
-              background: "linear-gradient(135deg, #1a1a1a 0%, #333 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent"
-            }}>Sales Return</h1>
-            <span style={{ 
-              fontSize: 13, 
-              padding: "6px 12px", 
-              borderRadius: 20, 
-              background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)", 
-              color: "#1976d2", 
-              fontWeight: 600,
-              boxShadow: "0 2px 8px rgba(25, 118, 210, 0.2)"
-            }}>
-              {invoices.length} invoices available
-            </span>
-          </div>
-        </div>
-        <div style={{ 
-          fontSize: 14, 
-          color: "#666", 
-          fontWeight: 500,
-          textAlign: "right"
-        }}>
-          {new Date().toLocaleDateString("en-IN", { 
-            weekday: "long", 
-            day: "2-digit", 
-            month: "long", 
-            year: "numeric" 
-          })}
-        </div>
+<div style={{
+  display: "flex", alignItems: "center", justifyContent: "space-between",
+  padding: "20px 28px", background: "#fff",
+  border: "0.5px solid #e5e7eb", borderRadius: 16, marginBottom: 20,
+}}>
+  {/* Left */}
+  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+    {/* Icon box */}
+    <div style={{
+      width: 44, height: 44, borderRadius: 12, background: "#EEEDFE",
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+    }}>
+      <span style={{ fontSize: 22 }}>🧾</span>
+    </div>
+
+    {/* Divider */}
+    <div style={{ width: 1, height: 28, background: "#e5e7eb" }} />
+
+    {/* Title + subtitle */}
+    <div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: "#1a1a1a", margin: 0 }}>
+        Sales Return
       </div>
+      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+        Process customer returns &amp; refunds
+      </div>
+    </div>
+
+    {/* Badge */}
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      fontSize: 12, fontWeight: 500, padding: "5px 12px",
+      borderRadius: 20, background: "#EEEDFE", color: "#534AB7",
+      border: "0.5px solid #AFA9EC",
+    }}>
+      🗂 {invoices.length} invoices available
+    </div>
+  </div>
+
+  {/* Right — date + live time */}
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#1a1a1a" }}>
+      📅 {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+    </div>
+    <div style={{ fontSize: 11, color: "#6b7280" }}>
+      🕐 {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+    </div>
+  </div>
+</div>
 
       {/* Rest of the component remains exactly the same */}
       {/* Two-panel layout */}
@@ -295,7 +343,7 @@ function SalesReturn({ products, onReturnSaved }) {
                 type="text"
                 placeholder="Search by invoice no. or customer…"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                 style={{
                   width: "100%",
                   fontSize: 15,
@@ -339,9 +387,14 @@ function SalesReturn({ products, onReturnSaved }) {
                 No invoices found
               </div>
             )}
-            {filteredInvoices.map((inv, index) => {
+            {paginatedInvoices.map((inv, index) => {
               const isActive = selectedInvoice?.id === inv.id;
-              const statusInfo = STATUS_COLORS[inv.status] || STATUS_COLORS.sale;
+              const returnKey = inv.has_return !== 1
+  ? "no_return"
+  : Number(inv.return_total || 0) < Number(inv.total || 0)
+  ? "partial"
+  : "returned";
+const statusInfo = STATUS_COLORS[returnKey];
               return (
                 <div
                   key={inv.id}
@@ -425,6 +478,58 @@ function SalesReturn({ products, onReturnSaved }) {
               );
             })}
           </div>
+
+          {/* Pagination */}
+          {filteredInvoices.length > itemsPerPage && (
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 10,
+              padding: "16px 24px",
+              borderTop: "1px solid rgba(0,0,0,0.05)",
+            }}>
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 12,
+                  border: "2px solid rgba(102,126,234,0.2)",
+                  background: currentPage === 1 ? "rgba(0,0,0,0.04)" : "rgba(102,126,234,0.08)",
+                  color: currentPage === 1 ? "#bbb" : "#667eea",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                ← Prev
+              </button>
+
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#666" }}>
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 12,
+                  border: "2px solid rgba(102,126,234,0.2)",
+                  background: currentPage === totalPages ? "rgba(0,0,0,0.04)" : "rgba(102,126,234,0.08)",
+                  color: currentPage === totalPages ? "#bbb" : "#667eea",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right: Detail Panel */}
@@ -538,13 +643,10 @@ function SalesReturn({ products, onReturnSaved }) {
                   icon="💰"
                 />
                 <MetricCard
-                  label="Refund Amount"
-                  value={`₹${Math.round(totalRefund).toLocaleString("en-IN")}`}
-                  valueStyle={{ 
-                    color: totalRefund > 0 ? "#d32f2f" : "#999" 
-                  }}
-                  icon={totalRefund > 0 ? "↩️" : "➡️"}
-                />
+  label={totalRefund > 0 ? "Refund to customer" : "Still owed to you"}
+  value={`₹${formatMoney(totalRefund > 0 ? totalRefund : adjustedOwed)}`}
+  icon={totalRefund > 0 ? "↩️" : "⚠️"}
+/>
               </div>
 
               {/* Items table */}
@@ -568,9 +670,9 @@ function SalesReturn({ products, onReturnSaved }) {
                   }}>
                     <thead>
                       <tr>
-                        {["Product", "Sold", "Return Qty", "Refund"].map((h) => (
+                        {["Product", "Sold", "Price Paid", "Return Qty", "Refund"].map((h) => (
                           <th key={h} style={{ 
-                            textAlign: h === "Refund" ? "right" : "left", 
+                            textAlign: (h === "Refund" || h === "Price Paid") ? "right" : "left", 
                             fontSize: 12, 
                             fontWeight: 600, 
                             color: "#666", 
@@ -586,8 +688,9 @@ function SalesReturn({ products, onReturnSaved }) {
                     </thead>
                     <tbody>
                       {invoiceItems.map((item, index) => {
-                        const refund = item.returnQty * (item.price || item.rate || 0);
+                        const refund = item.returnQty * item.unitPrice;
                         const hasQty = item.returnQty > 0;
+                        const hasDiscount = Number(item.price || item.rate || 0) > item.unitPrice + 0.001;
                         return (
                           <tr key={index} style={{ 
                             background: hasQty ? "rgba(76, 175, 80, 0.05)" : "transparent",
@@ -623,6 +726,26 @@ function SalesReturn({ products, onReturnSaved }) {
                               verticalAlign: "middle" 
                             }}>
                               {item.quantity}
+                            </td>
+                            <td style={{
+                              padding: "16px 12px 16px 0",
+                              borderBottom: "none",
+                              textAlign: "right",
+                              verticalAlign: "middle",
+                            }}>
+                              <div style={{ fontWeight: 600, color: "#333" }}>
+                                ₹{formatMoney(item.unitPrice)}
+                              </div>
+                              {hasDiscount && (
+                                <div style={{
+                                  fontSize: 11,
+                                  color: "#999",
+                                  textDecoration: "line-through",
+                                  marginTop: 2,
+                                }}>
+                                  ₹{formatMoney(item.price || item.rate || 0)}
+                                </div>
+                              )}
                             </td>
                             <td style={{ 
                               padding: "16px 12px 16px 0", 
@@ -663,7 +786,7 @@ function SalesReturn({ products, onReturnSaved }) {
                               verticalAlign: "middle",
                               fontSize: 15
                             }}>
-                              ₹{Math.round(refund).toLocaleString("en-IN")}
+                              ₹{formatMoney(refund)}
                             </td>
                           </tr>
                         );
@@ -684,20 +807,34 @@ function SalesReturn({ products, onReturnSaved }) {
               }}>
                 <div>
                   <div style={{ fontSize: 13, color: "#888", marginBottom: 4 }}>
-                    Total refund amount
-                  </div>
-                  <div style={{ 
-                    fontSize: 28, 
-                    fontWeight: 700, 
-                    color: totalRefund > 0 ? "#4caf50" : "#999",
-                    background: totalRefund > 0 
-                      ? "linear-gradient(135deg, #4caf50 0%, #45a049 100%)" 
-                      : "transparent",
-                    WebkitBackgroundClip: totalRefund > 0 ? "text" : "none",
-                    WebkitTextFillColor: totalRefund > 0 ? "transparent" : "#999"
-                  }}>
-                    ₹{Math.round(totalRefund).toLocaleString("en-IN")}
-                  </div>
+  {totalRefund > 0 ? "Refund to customer" : adjustedOwed > 0 ? "Customer still owes you" : "Settled"}
+</div>
+<div style={{ 
+  fontSize: 28, fontWeight: 700,
+  color: totalRefund > 0 ? "#4caf50" : adjustedOwed > 0 ? "#d32f2f" : "#999",
+  background: "none",
+  WebkitBackgroundClip: "unset",
+  WebkitTextFillColor: totalRefund > 0 ? "#4caf50" : adjustedOwed > 0 ? "#d32f2f" : "#999"
+}}>
+  ₹{formatMoney(totalRefund > 0 ? totalRefund : adjustedOwed)}
+</div>
+
+{adjustedOwed > 0 && (
+  <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+    After this return, customer still owes ₹{formatMoney(adjustedOwed)}
+  </div>
+)}
+{totalRefund > 0 && (
+  <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+    Refund ₹{formatMoney(totalRefund)} to customer
+  </div>
+)}
+
+                  {unpaidPortion > 0 && (
+  <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+    (₹{formatMoney(unpaidPortion)} of returned value was never paid — no refund owed)
+  </div>
+)}
                 </div>
                 <div style={{ display: "flex", gap: 12 }}>
                   <button
@@ -727,7 +864,7 @@ function SalesReturn({ products, onReturnSaved }) {
                   </button>
                   <button
                     onClick={handleReturn}
-                    disabled={totalRefund === 0 || submitting}
+                    disabled={selectedItemsCount === 0 || submitting}
                     style={{
                       padding: "12px 28px",
                       borderRadius: 16,

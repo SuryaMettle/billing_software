@@ -2,6 +2,145 @@ import { useEffect, useState, useRef } from "react";
 
 import api from "../services/api.js";
 
+// ─── Soft Pastel Light Theme (local to this file) ─────────────────────────
+const lt = {
+  bg: "#f7f6f3",
+  card: "#ffffff",
+  cardBorder: "#ece9e3",
+  surface: "#faf9f6",
+  surfaceBorder: "#e8e5de",
+  rowHover: "#f6f4ff",
+
+  textPrimary: "#2d2a26",
+  textSecondary: "#6b6661",
+  textMuted: "#a8a29b",
+
+  accent: "#7c6df2",
+  accentSoft: "#efebff",
+  accentBorder: "#ddd6ff",
+  accentGradient: "linear-gradient(135deg, #8b7cf6 0%, #6d5cf0 100%)",
+
+  yellow: "#e0a72a",
+  yellowSoft: "#fef6e0",
+  yellowBorder: "#fbe5ae",
+
+  green: "#3f9d72",
+  greenSoft: "#e6f6ee",
+  greenBorder: "#bfe8d5",
+
+  red: "#e0667a",
+  redSoft: "#fdeaef",
+  redBorder: "#f8c9d4",
+
+  blue: "#5b9fd6",
+  blueSoft: "#e9f3fb",
+  blueBorder: "#c9e3f7",
+};
+
+const inputStyle = {
+  background: lt.surface,
+  border: `1.5px solid ${lt.surfaceBorder}`,
+  borderRadius: "10px",
+  color: lt.textPrimary,
+  padding: "10px 13px",
+  fontSize: "14px",
+  outline: "none",
+  transition: "all 0.15s ease",
+};
+
+const selectStyle = {
+  ...inputStyle,
+  appearance: "none",
+  cursor: "pointer",
+};
+
+const cardStyle = {
+  background: lt.card,
+  border: `1px solid ${lt.cardBorder}`,
+  borderRadius: "18px",
+  padding: "24px",
+  boxShadow: "0 2px 12px rgba(45,42,38,0.04)",
+};
+
+const primaryButtonStyle = {
+  padding: "11px 24px",
+  background: lt.accentGradient,
+  color: "#fff",
+  border: "none",
+  borderRadius: "12px",
+  cursor: "pointer",
+  fontWeight: "700",
+  fontSize: "14px",
+  letterSpacing: "0.2px",
+  boxShadow: "0 4px 14px rgba(124,109,242,0.3)",
+  transition: "all 0.2s ease",
+};
+
+const ghostButtonStyle = {
+  padding: "10px 18px",
+  background: lt.accentSoft,
+  color: lt.accent,
+  border: `1px solid ${lt.accentBorder}`,
+  borderRadius: "12px",
+  cursor: "pointer",
+  fontWeight: "700",
+  fontSize: "13px",
+  transition: "all 0.2s ease",
+};
+
+const fieldLabel = {
+  display: "block",
+  fontSize: "11px",
+  fontWeight: "700",
+  letterSpacing: "0.6px",
+  textTransform: "uppercase",
+  color: lt.textSecondary,
+  marginBottom: "7px",
+};
+
+const sectionHeader = {
+  fontSize: "13px",
+  fontWeight: "800",
+  letterSpacing: "0.4px",
+  color: lt.textPrimary,
+  marginBottom: "14px",
+  paddingBottom: "10px",
+  borderBottom: `1px solid ${lt.cardBorder}`,
+};
+
+const modalOverlay = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  background: "rgba(45,42,38,0.35)",
+  backdropFilter: "blur(3px)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 2000,
+};
+
+const modalCard = {
+  background: "#fff",
+  borderRadius: "20px",
+  padding: "26px",
+  boxShadow: "0 24px 64px rgba(45,42,38,0.18)",
+  border: `1px solid ${lt.cardBorder}`,
+};
+
+const onFocusStyle = (e) => {
+  e.target.style.borderColor = lt.accent;
+  e.target.style.boxShadow = "0 0 0 3px rgba(124,109,242,0.12)";
+  e.target.style.background = "#fff";
+};
+const onBlurStyle = (e) => {
+  e.target.style.borderColor = lt.surfaceBorder;
+  e.target.style.boxShadow = "none";
+  e.target.style.background = lt.surface;
+};
+
 function PurchaseBilling() {
   const [products, setProducts] = useState([]);
   const [selected, setSelected] = useState("");
@@ -25,8 +164,7 @@ function PurchaseBilling() {
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState(null);
   const [paymentTerms, setPaymentTerms] = useState("immediate");
-const [dueDate, setDueDate] = useState("");
-
+  const [dueDate, setDueDate] = useState("");
 
   const indianStates = [
     "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -55,29 +193,29 @@ const [dueDate, setDueDate] = useState("");
   );
 
   const paymentOptions = [
-  { value: "cash", label: "Cash" },
-  { value: "upi", label: "UPI" },
-  { value: "card", label: "Card" },
-  { value: "net_banking", label: "Net Banking" }
-];
+    { value: "cash", label: "Cash" },
+    { value: "upi", label: "UPI" },
+    { value: "card", label: "Card" },
+    { value: "net_banking", label: "Net Banking" }
+  ];
 
-const updatePayment = (index, field, value) => {
-  setPayments(prev =>
-    prev.map((payment, i) =>
-      i === index
-        ? { ...payment, [field]: field === "amount" ? Number(value) : value }
-        : payment
-    )
-  );
-};
+  const updatePayment = (index, field, value) => {
+    setPayments(prev =>
+      prev.map((payment, i) =>
+        i === index
+          ? { ...payment, [field]: field === "amount" ? Number(value) : value }
+          : payment
+      )
+    );
+  };
 
-const addPaymentRow = () => {
-  setPayments(prev => [...prev, { mode: "cash", amount: 0 }]);
-};
+  const addPaymentRow = () => {
+    setPayments(prev => [...prev, { mode: "cash", amount: 0 }]);
+  };
 
-const removePaymentRow = (index) => {
-  setPayments(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== index));
-};
+  const removePaymentRow = (index) => {
+    setPayments(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== index));
+  };
 
   useEffect(() => {
     const loadSuppliers = () => {
@@ -128,8 +266,8 @@ const removePaymentRow = (index) => {
         total: product.price * qty,
         discountPercent: 0,
         discountAmount: 0,
-        hsn_code: product.hsn_code || "",  // ✅
-        tax_rate: product.tax_rate || 0     // ✅
+        hsn_code: product.hsn_code || "",
+        tax_rate: product.tax_rate || 0
       };
       setCart([...cart, item]);
     }
@@ -144,7 +282,7 @@ const removePaymentRow = (index) => {
   const getTotal = () => cart.reduce((sum, item) => sum + item.total, 0);
 
   const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-const balance = getTotal() - totalPaid;
+  const balance = getTotal() - totalPaid;
 
   const savePurchase = async () => {
     if (!selectedSupplier || !selectedSupplier.id) {
@@ -158,52 +296,49 @@ const balance = getTotal() - totalPaid;
 
     try {
       const totalPaidAmount = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-const total = getTotal();
+      const total = getTotal();
 
-let paymentStatus = "pending";
-if (totalPaidAmount >= total) paymentStatus = "paid";
-else if (totalPaidAmount > 0) paymentStatus = "partial";
+      let paymentStatus = "pending";
+      if (totalPaidAmount >= total) paymentStatus = "paid";
+      else if (totalPaidAmount > 0) paymentStatus = "partial";
 
-const validPayments = payments
-  .map(p => ({ mode: p.mode, amount: Number(p.amount || 0) }))
-  .filter(p => p.amount > 0);
+      const validPayments = payments
+        .map(p => ({ mode: p.mode, amount: Number(p.amount || 0) }))
+        .filter(p => p.amount > 0);
 
-const res = await api.createPurchaseInvoice({
+      const res = await api.createPurchaseInvoice({
   party_id: selectedSupplier.id,
   items: cart,
   total,
+  paid_amount: totalPaidAmount,   
+  payment_mode: validPayments.length === 1
+    ? validPayments[0].mode
+    : validPayments.length > 1 ? "split" : "",  
   payments: validPayments,
   payment_status: paymentStatus,
   payment_terms: paymentTerms,
   due_date: dueDate
 });
 
-
       if (res.success) {
-
-        // --- NEW: AUTOMATIC STOCK CONVERSION ---
-      // We check every item in the cart to see if it's a 'bulk' item
-      for (const item of cart) {
-        if (item.unit_type === 'bulk') {
-          // If it's bulk, trigger the conversion logic in the background
-          await api.convertStock({
-            parentId: item.id,
-            qtyToDeduct: item.quantity, 
-            purchaseId: res.id // Use the ID returned from the created invoice
-          });
+        for (const item of cart) {
+          if (item.unit_type === 'bulk') {
+            await api.convertStock({
+              parentId: item.id,
+              qtyToDeduct: item.quantity,
+              purchaseId: res.id
+            });
+          }
         }
-      }
-      // --- END CONVERSION LOGIC ---
 
         showToast("Purchase invoice saved & Stock updated! ✅");
-        
+
         setCart([]);
         setPayments([{ mode: "cash", amount: 0 }]);
         setSelectedSupplier(null);
         setPaymentTerms("immediate");
         setDueDate("");
         loadProducts();
-
 
         const updated = await api.getParties();
         setSuppliers(updated.filter(p => p.type === "supplier" || p.type === "both"));
@@ -263,28 +398,27 @@ const res = await api.createPurchaseInvoice({
   }, []);
 
   useEffect(() => {
-  const today = new Date();
+    const today = new Date();
 
-  if (paymentTerms === "custom") {
-    setDueDate("");
-    return;
-  }
+    if (paymentTerms === "custom") {
+      setDueDate("");
+      return;
+    }
 
-  const daysMap = {
-    immediate: 0,
-    "7_days": 7,
-    "15_days": 15,
-    "30_days": 30
-  };
+    const daysMap = {
+      immediate: 0,
+      "7_days": 7,
+      "15_days": 15,
+      "30_days": 30
+    };
 
-  const daysToAdd = daysMap[paymentTerms] || 0;
-  const date = new Date(today);
-  date.setDate(today.getDate() + daysToAdd);
+    const daysToAdd = daysMap[paymentTerms] || 0;
+    const date = new Date(today);
+    date.setDate(today.getDate() + daysToAdd);
 
-  const formattedDate = date.toISOString().split("T")[0];
-  setDueDate(formattedDate);
-}, [paymentTerms]);
-
+    const formattedDate = date.toISOString().split("T")[0];
+    setDueDate(formattedDate);
+  }, [paymentTerms]);
 
   const isFormValid = newSupplierName.trim() && newSupplierPhone.length === 10;
 
@@ -327,15 +461,14 @@ const res = await api.createPurchaseInvoice({
     showToast("Supplier created ✅");
   };
 
-  const cardStyle = {
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "20px",
-    boxShadow: "0 8px 25px rgba(0,0,0,0.08)"
-  };
-
   return (
-    <div style={{ marginTop: "10px" }}>
+    <div style={{
+      marginTop: "10px",
+      background: lt.bg,
+      padding: "20px",
+      borderRadius: "16px",
+      minHeight: "calc(100vh - 40px)",
+    }}>
 
       {/* TOAST */}
       {toast && (
@@ -344,201 +477,248 @@ const res = await api.createPurchaseInvoice({
           top: "24px",
           left: "50%",
           transform: "translateX(-50%)",
-          background: toast.type === "error" ? "#d32f2f" : "#2e7d32",
-          color: "#fff",
+          background: toast.type === "error" ? lt.redSoft : lt.greenSoft,
+          border: `1px solid ${toast.type === "error" ? lt.redBorder : lt.greenBorder}`,
+          color: toast.type === "error" ? lt.red : lt.green,
           padding: "12px 28px",
-          borderRadius: "8px",
-          fontSize: "15px",
-          fontWeight: "500",
+          borderRadius: "14px",
+          fontSize: "14px",
+          fontWeight: "700",
           zIndex: 9999,
-          boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+          boxShadow: "0 12px 32px rgba(45,42,38,0.15)",
           pointerEvents: "none"
         }}>
           {toast.message}
         </div>
       )}
 
-      {/* TITLE */}
-      <h2 style={{
-        marginBottom: "25px",
-        fontWeight: "700",
-        color: "#111",
-        textAlign: "center",
-        letterSpacing: "0.5px"
-      }}>
-        Purchase
-      </h2>
-
-      <div style={{ display: "flex", gap: "20px", alignItems: "stretch" }}>
-  {/* SUPPLIER SECTION */}
-  <div
-    ref={supplierRef}
-    style={{
-      width: "62%",
-      ...cardStyle,
-      position: "relative",
-      marginBottom: "20px"
-    }}
-  >
-
-        <h3 style={{ marginBottom: "15px" }}>Select Supplier</h3>
-
-        <div
-          onClick={() => setShowSupplierDropdown(prev => !prev)}
-          style={{
-            border: "2px dashed #c4b5fd",
-            borderRadius: "10px",
-            padding: "25px",
-            textAlign: "center",
-            cursor: "pointer",
-            color: "#7c3aed",
-            fontWeight: "500",
-            background: "#faf5ff"
-          }}
-        >
-          + Add Supplier
+      {/* HEADER */}
+      <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "14px" }}>
+        <div style={{
+          width: "40px", height: "40px", borderRadius: "12px",
+          background: lt.accentGradient,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "19px", boxShadow: "0 4px 14px rgba(124,109,242,0.3)",
+        }}>🧾</div>
+        <h2 style={{ margin: 0, fontWeight: "800", fontSize: "21px", color: lt.textPrimary, letterSpacing: "0.2px" }}>
+          Purchase Bill
+        </h2>
+        <div style={{
+          marginLeft: "auto", fontSize: "13px", fontWeight: "700", color: "#fff",
+          background: lt.accentGradient, padding: "6px 16px",
+          borderRadius: "20px", boxShadow: "0 4px 14px rgba(124,109,242,0.3)",
+          letterSpacing: "0.3px"
+        }}>
+          📅 {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
         </div>
-
-        {/* DROPDOWN */}
-        {showSupplierDropdown && (
-          <div style={{
-            position: "absolute",
-            top: "100%",
-            left: "20px",
-            right: "20px",
-            background: "#fff",
-            borderRadius: "10px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-            marginTop: "8px",
-            zIndex: 1000,
-            padding: "10px"
-          }}>
-            <input
-              type="text"
-              placeholder="Search supplier..."
-              value={supplierSearch}
-              onChange={(e) => setSupplierSearch(e.target.value)}
-              style={{
-                width: "100%", padding: "8px", border: "1px solid #ddd",
-                borderRadius: "6px", marginBottom: "8px", boxSizing: "border-box"
-              }}
-            />
-
-            <div style={{
-              display: "flex", justifyContent: "space-between",
-              padding: "8px 10px", fontSize: "12px", fontWeight: "600",
-              color: "#666", borderBottom: "1px solid #eee"
-            }}>
-              <span>Supplier Name</span>
-              <span>Balance</span>
-            </div>
-
-            {filteredSuppliers.length === 0 && (
-              <div style={{ padding: "12px", textAlign: "center", color: "#999", fontSize: "13px" }}>
-                No suppliers found
-              </div>
-            )}
-
-            {filteredSuppliers.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => { setSelectedSupplier(p); setShowSupplierDropdown(false); }}
-                style={{ display: "flex", justifyContent: "space-between", padding: "10px", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f5f5")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <span>{p.name}</span>
-                <span style={{ color: p.balance < 0 ? "#d32f2f" : "#2e7d32" }}>
-                  ₹{Math.abs(p.balance || 0)}
-                </span>
-              </div>
-            ))}
-
-            <div
-              onClick={() => { setShowSupplierModal(true); setShowSupplierDropdown(false); }}
-              style={{
-                padding: "10px", marginTop: "8px", borderTop: "1px solid #eee",
-                cursor: "pointer", color: "#7c3aed", fontWeight: "500", textAlign: "center"
-              }}
-            >
-              + Create New Supplier
-            </div>
-          </div>
-        )}
       </div>
 
-      <div
-  style={{
-    width: "28%",
-    minHeight: "150px",
-    ...cardStyle,
-    marginBottom: "20px"
-  }}
->
-  <h3 style={{ marginBottom: "15px" }}>Payment Details</h3>
+      {/* TOP ROW: SUPPLIER + PAYMENT DETAILS */}
+      <div style={{ display: "flex", gap: "16px", marginBottom: "16px" }}>
 
-  <div style={{ marginBottom: "12px" }}>
-    <label style={{ fontWeight: "500" }}>Payment Terms</label>
-    <select
-      value={paymentTerms}
-      onChange={(e) => setPaymentTerms(e.target.value)}
-      style={{
-        width: "100%",
-        padding: "10px",
-        marginTop: "6px",
-        borderRadius: "6px",
-        border: "1px solid #ddd"
-      }}
-    >
-      <option value="immediate">Immediate</option>
-      <option value="7_days">7 Days</option>
-      <option value="15_days">15 Days</option>
-      <option value="30_days">30 Days</option>
-      <option value="custom">Custom</option>
-    </select>
-  </div>
+        {/* SUPPLIER SECTION */}
+        <div
+          ref={supplierRef}
+          style={{
+            flex: 2,
+            ...cardStyle,
+            position: "relative",
+            zIndex: 10,
+          }}
+        >
+          <div style={sectionHeader}>🏢 Select Supplier</div>
 
-  <div>
-    <label style={{ fontWeight: "500" }}>Due Date</label>
-    <input
-      type="date"
-      value={dueDate}
-      onChange={(e) => setDueDate(e.target.value)}
-      style={{
-        width: "100%",
-        padding: "10px",
-        marginTop: "6px",
-        borderRadius: "6px",
-        border: "1px solid #ddd",
-        boxSizing: "border-box"
-      }}
-    />
-  </div>
-</div>
-</div>
+          <div
+            onClick={() => setShowSupplierDropdown(prev => !prev)}
+            style={{
+              border: `2px dashed ${lt.accent}`,
+              borderRadius: "12px",
+              padding: "18px",
+              textAlign: "center",
+              cursor: "pointer",
+              color: lt.accent,
+              fontWeight: "700",
+              fontSize: "14px",
+              background: lt.accentSoft,
+              transition: "all 0.2s",
+              letterSpacing: "0.3px",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = "#e3ddff";
+              e.currentTarget.style.borderColor = "#6d5cf0";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = lt.accentSoft;
+              e.currentTarget.style.borderColor = lt.accent;
+            }}
+          >
+            + Add Supplier
+          </div>
 
-      {/* SELECTED SUPPLIER CARD */}
+          {/* DROPDOWN */}
+          {showSupplierDropdown && (
+            <div style={{
+              position: "absolute",
+              top: "100%",
+              left: "16px",
+              right: "16px",
+              background: "#fff",
+              borderRadius: "14px",
+              boxShadow: "0 16px 48px rgba(45,42,38,0.18)",
+              marginTop: "8px",
+              zIndex: 1000,
+              padding: "12px",
+              border: `1px solid ${lt.cardBorder}`,
+            }}>
+              <input
+                type="text"
+                placeholder="Search supplier..."
+                value={supplierSearch}
+                onChange={(e) => setSupplierSearch(e.target.value)}
+                style={{ ...inputStyle, width: "100%", marginBottom: "10px", boxSizing: "border-box" }}
+                onFocus={onFocusStyle}
+                onBlur={onBlurStyle}
+              />
+
+              <div style={{
+                display: "flex", justifyContent: "space-between",
+                padding: "6px 10px", fontSize: "11px", fontWeight: "700",
+                letterSpacing: "0.6px", textTransform: "uppercase",
+                color: lt.textMuted, borderBottom: `1px solid ${lt.cardBorder}`,
+                marginBottom: "4px",
+              }}>
+                <span>Supplier Name</span>
+                <span>Balance</span>
+              </div>
+
+              <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                {filteredSuppliers.length === 0 && (
+                  <div style={{ padding: "14px", textAlign: "center", color: lt.textMuted, fontSize: "13px" }}>
+                    No suppliers found
+                  </div>
+                )}
+
+                {filteredSuppliers.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => { setSelectedSupplier(p); setShowSupplierDropdown(false); }}
+                    style={{
+                      display: "flex", justifyContent: "space-between",
+                      padding: "10px 10px", cursor: "pointer", borderRadius: "8px",
+                      color: lt.textPrimary, fontSize: "14px", transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = lt.rowHover)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <span>{p.name}</span>
+                    <span style={{ color: p.balance < 0 ? lt.red : lt.green, fontWeight: "700" }}>
+                      ₹{Math.abs(p.balance || 0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                onClick={() => { setShowSupplierModal(true); setShowSupplierDropdown(false); }}
+                style={{
+                  padding: "10px", marginTop: "6px", borderTop: `1px solid ${lt.cardBorder}`,
+                  cursor: "pointer", color: lt.accent, fontWeight: "700", textAlign: "center",
+                  fontSize: "13px", borderRadius: "0 0 8px 8px", transition: "background 0.15s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = lt.accentSoft}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                + Create New Supplier
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* PAYMENT DETAILS */}
+        <div style={{ flex: 1, ...cardStyle }}>
+          <div style={sectionHeader}>🗓 Payment Terms</div>
+
+          <div style={{ marginBottom: "12px" }}>
+            <label style={fieldLabel}>Terms</label>
+            <div style={{ position: "relative" }}>
+              <select
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(e.target.value)}
+                style={{ ...selectStyle, width: "100%", paddingRight: "30px" }}
+                onFocus={onFocusStyle}
+                onBlur={onBlurStyle}
+              >
+                <option value="immediate">Immediate</option>
+                <option value="7_days">7 Days</option>
+                <option value="15_days">15 Days</option>
+                <option value="30_days">30 Days</option>
+                <option value="custom">Custom</option>
+              </select>
+              <span style={{
+                position: "absolute", right: "10px", top: "50%",
+                transform: "translateY(-50%)", pointerEvents: "none",
+                color: lt.textMuted, fontSize: "10px",
+              }}>▼</span>
+            </div>
+          </div>
+
+          <div>
+            <label style={fieldLabel}>Due Date</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+              onFocus={onFocusStyle}
+              onBlur={onBlurStyle}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* SELECTED SUPPLIER BANNER */}
       {selectedSupplier && (
         <div style={{
-          maxWidth: "900px",
-          margin: "0 auto 20px auto",
-          background: "#faf5ff",
-          borderRadius: "10px",
-          padding: "15px 20px",
-          border: "1px solid #c4b5fd",
+          marginBottom: "16px",
+          background: lt.accentSoft,
+          borderRadius: "14px",
+          padding: "14px 18px",
+          border: `1px solid ${lt.accentBorder}`,
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center"
+          alignItems: "center",
         }}>
-          <div>
-            <div style={{ fontWeight: "600", fontSize: "16px" }}>{selectedSupplier.name}</div>
-            <div style={{ fontSize: "13px", color: "#555" }}>{selectedSupplier.phone}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{
+              width: "36px", height: "36px", borderRadius: "50%",
+              background: lt.accentGradient,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "16px", fontWeight: "800", color: "#fff",
+              boxShadow: "0 4px 14px rgba(124,109,242,0.3)",
+            }}>
+              {selectedSupplier.name?.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontWeight: "800", fontSize: "15px", color: lt.textPrimary }}>
+                {selectedSupplier.name}
+              </div>
+              <div style={{ fontSize: "12px", color: lt.textSecondary }}>
+                {selectedSupplier.phone}
+              </div>
+            </div>
           </div>
+
           <button
             onClick={() => setSelectedSupplier(null)}
             style={{
-              background: "#a33636", border: "none", borderRadius: "6px",
-              padding: "6px 10px", cursor: "pointer", color: "#fff", fontSize: "13px"
+              background: lt.redSoft,
+              border: `1px solid ${lt.redBorder}`,
+              borderRadius: "10px",
+              padding: "7px 16px",
+              cursor: "pointer",
+              color: lt.red,
+              fontWeight: "700",
+              fontSize: "13px",
             }}
           >
             Change
@@ -547,480 +727,555 @@ const res = await api.createPurchaseInvoice({
       )}
 
       {/* MAIN LAYOUT */}
-      <div style={{ display: "flex", gap: "30px", alignItems: "flex-start" }}>
+      <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
 
-        {/* LEFT — ADD PRODUCTS (smaller) */}
-        <div style={{ flex: 0.6 }}>
+        {/* LEFT — ADD PRODUCTS */}
+        <div style={{ flex: "0 0 300px" }}>
           <div style={cardStyle}>
-            <h3 style={{ marginBottom: "15px" }}>Add Products</h3>
+            <div style={sectionHeader}>🔍 Add Products</div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-
-              {/* SEARCH */}
+            {/* SEARCH */}
+            <div style={{ marginBottom: "16px" }}>
+              <label style={fieldLabel}>Product Search</label>
               <div style={{ position: "relative" }}>
                 <input
                   type="text"
                   placeholder="Search product..."
                   value={search}
-                  onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
-                  onFocus={() => setShowDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-                  style={{
-                    width: "260px", padding: "10px 12px",
-                    borderRadius: "8px", border: "1px solid #ddd"
-                  }}
+                  onChange={(e) => { setSearch(e.target.value); setSelected(""); setShowDropdown(true); }}
+                  onFocus={(e) => { setShowDropdown(true); onFocusStyle(e); }}
+                  onBlur={(e) => { setTimeout(() => setShowDropdown(false), 150); onBlurStyle(e); }}
+                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                 />
+
                 {showDropdown && search && (
                   <div style={{
-                    position: "absolute", width: "260px", background: "#fff",
-                    borderRadius: "8px", boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
-                    maxHeight: "200px", overflowY: "auto", marginTop: "6px", zIndex: 1000
+                    position: "absolute", width: "100%", background: "#fff",
+                    borderRadius: "12px", boxShadow: "0 12px 40px rgba(45,42,38,0.15)",
+                    maxHeight: "220px", overflowY: "auto", marginTop: "6px", zIndex: 1000,
+                    border: `1px solid ${lt.cardBorder}`,
                   }}>
+                    {filteredProducts.length === 0 && (
+                      <div style={{ padding: "14px", color: lt.textMuted, fontSize: "13px", textAlign: "center" }}>
+                        No products found
+                      </div>
+                    )}
+
                     {filteredProducts.map((p) => (
-  <div
-    key={p.id}
-    onClick={() => { setSelected(p.id); setSearch(p.name); setShowDropdown(false); }}
-    style={{ 
-      padding: "10px", 
-      cursor: "pointer",
-      borderBottom: "1px solid #f0f0f0" // Added for better separation
-    }}
-    onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f5f5")}
-    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-  >
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <span>{p.name}</span>
-      {/* --- Unit Type Badge --- */}
-      <span style={{ 
-        fontSize: "10px", 
-        background: p.unit_type === 'bulk' ? "#fee2e2" : "#e0e7ff", 
-        color: p.unit_type === 'bulk' ? "#991b1b" : "#3730a3",
-        padding: "2px 6px", 
-        borderRadius: "4px",
-        fontWeight: "600",
-        textTransform: "uppercase"
-      }}>
-        {p.unit_type || 'unit'}
-      </span>
-    </div>
-    <div style={{ fontSize: "12px", color: "#888" }}>₹{p.price}</div>
-  </div>
-))}
+                      <div
+                        key={p.id}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSelected(p.id);
+                          setSearch(p.name);
+                          setShowDropdown(false);
+                        }}
+                        style={{
+                          padding: "10px 14px", cursor: "pointer",
+                          borderBottom: `1px solid ${lt.cardBorder}`,
+                          transition: "background 0.15s",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = lt.rowHover)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: "700", color: lt.textPrimary, fontSize: "14px" }}>
+                            {p.name}
+                          </span>
+                          <span style={{
+                            fontSize: "10px",
+                            background: p.unit_type === 'bulk' ? lt.yellowSoft : lt.blueSoft,
+                            color: p.unit_type === 'bulk' ? lt.yellow : lt.blue,
+                            padding: "2px 8px", borderRadius: "8px",
+                            fontWeight: "700", textTransform: "uppercase",
+                            border: `1px solid ${p.unit_type === 'bulk' ? lt.yellowBorder : lt.blueBorder}`,
+                          }}>
+                            {p.unit_type || 'unit'}
+                          </span>
+                        </div>
+                        <div style={{ marginTop: "3px", fontSize: "13px", color: lt.accent, fontWeight: "700" }}>
+                          ₹{p.price}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* QUANTITY */}
+            {/* QUANTITY */}
+            <div style={{ marginBottom: "16px" }}>
+              <label style={fieldLabel}>Quantity</label>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <label style={{ fontSize: "16px", color: "#333", fontWeight: "600", minWidth: "70px" }}>
-                  Quantity
-                </label>
-
                 <button
                   onClick={() => setQty(qty > 1 ? qty - 1 : 1)}
                   style={{
-                    width: "32px", height: "32px", borderRadius: "6px",
-                    border: "1px solid #ddd", background: "#7c3aed",
-                    color: "#fff", cursor: "pointer", fontSize: "16px", fontWeight: "bold"
+                    width: "34px", height: "34px", borderRadius: "10px",
+                    border: `1px solid ${lt.surfaceBorder}`, background: lt.surface,
+                    color: lt.textPrimary, cursor: "pointer", fontSize: "18px",
+                    fontWeight: "800", display: "flex", alignItems: "center",
+                    justifyContent: "center", transition: "all 0.15s", lineHeight: "1",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#6d28d9")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#7c3aed")}
-                >−</button>
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = lt.redSoft;
+                    e.currentTarget.style.borderColor = lt.redBorder;
+                    e.currentTarget.style.color = lt.red;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = lt.surface;
+                    e.currentTarget.style.borderColor = lt.surfaceBorder;
+                    e.currentTarget.style.color = lt.textPrimary;
+                  }}
+                >
+                  −
+                </button>
 
                 <input
                   type="number"
                   value={qty}
-                  onChange={(e) => setQty(Number(e.target.value))}
+                  onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
                   min="1"
                   style={{
-                    width: "60px", textAlign: "center", padding: "8px",
-                    borderRadius: "6px", border: "1px solid #ddd", marginTop: "8px"
+                    ...inputStyle, width: "64px", textAlign: "center",
+                    fontWeight: "800", fontSize: "16px",
                   }}
+                  onFocus={onFocusStyle}
+                  onBlur={onBlurStyle}
                 />
 
                 <button
                   onClick={() => setQty(qty + 1)}
                   style={{
-                    width: "32px", height: "32px", borderRadius: "6px",
-                    border: "1px solid #ddd", background: "#7c3aed",
-                    color: "#fff", cursor: "pointer", fontSize: "16px", fontWeight: "bold"
+                    width: "34px", height: "34px", borderRadius: "10px",
+                    border: `1px solid ${lt.surfaceBorder}`, background: lt.surface,
+                    color: lt.textPrimary, cursor: "pointer", fontSize: "18px",
+                    fontWeight: "800", display: "flex", alignItems: "center",
+                    justifyContent: "center", transition: "all 0.15s", lineHeight: "1",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#6d28d9")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#7c3aed")}
-                >+</button>
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = lt.greenSoft;
+                    e.currentTarget.style.borderColor = lt.greenBorder;
+                    e.currentTarget.style.color = lt.green;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = lt.surface;
+                    e.currentTarget.style.borderColor = lt.surfaceBorder;
+                    e.currentTarget.style.color = lt.textPrimary;
+                  }}
+                >
+                  +
+                </button>
               </div>
-
-              <button
-                onClick={addToCart}
-                style={{
-                  marginTop: "10px", padding: "10px", width: "150px",
-                  background: "#111", color: "#fff", border: "none",
-                  borderRadius: "8px", cursor: "pointer", fontWeight: "500"
-                }}
-              >
-                Add Item
-              </button>
             </div>
+
+            <button onClick={addToCart} style={{ ...primaryButtonStyle, width: "100%" }}>
+              + Add Item
+            </button>
           </div>
         </div>
 
-        {/* RIGHT — CART + PAYMENT (bigger) */}
-        <div style={{ flex: 1.8 }}>
+        {/* RIGHT — CART + PAYMENT */}
+        <div style={{ flex: 1, minWidth: 0 }}>
 
-  {/* ORDER SUMMARY — separate card, outside the main card */}
-  <div style={{
-    maxWidth: "90%", width: "100%", position: "relative",
-    background: "#f5f3ff", borderRadius: "12px", padding: "20px",
-    marginBottom: "15px", border: "2px solid",
-    borderColor: cart.length > 0 ? "#7c3aed" : "#e2e8f0",
-    boxShadow: "0 8px 25px rgba(0,0,0,0.08)"
-  }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-      <h3 style={{ margin: 0, color: "#1e293b" }}>Order Summary</h3>
-      <div style={{
-        display: "flex", alignItems: "center", gap: "8px",
-        background: cart.length > 0 ? "#7c3aed" : "transparent",
-        color: cart.length > 0 ? "white" : "#64748b",
-        padding: cart.length > 0 ? "6px 12px" : "6px 8px",
-        borderRadius: "20px", fontSize: "14px", fontWeight: "600"
-      }}>
-        {cart.length === 0 ? "Empty" : `${cart.length} Items`}
-        {cart.length > 0 && (
-          <div style={{ width: "8px", height: "8px", background: "#10b981", borderRadius: "50%" }} />
-        )}
-      </div>
-    </div>
-    <div style={{ fontSize: "20px", fontWeight: "700",
-      color: cart.length > 0 ? "#7c3aed" : "#94a3b8", textAlign: "right" }}>
-      ₹{getTotal().toFixed(2)}
-    </div>
-  </div>
+          {/* ORDER SUMMARY */}
+          <div style={{
+            ...cardStyle,
+            marginBottom: "12px",
+            background: cart.length > 0 ? lt.accentSoft : lt.card,
+            border: cart.length > 0 ? `1px solid ${lt.accentBorder}` : `1px solid ${lt.cardBorder}`,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0, color: lt.textPrimary, fontSize: "16px", fontWeight: "800" }}>
+                Order Summary
+              </h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{
+                  background: cart.length > 0 ? lt.accentGradient : lt.surface,
+                  color: cart.length > 0 ? "#fff" : lt.textMuted,
+                  padding: "5px 14px", borderRadius: "20px",
+                  fontSize: "13px", fontWeight: "700",
+                  boxShadow: cart.length > 0 ? "0 4px 14px rgba(124,109,242,0.3)" : "none",
+                }}>
+                  {cart.length === 0 ? "Empty" : `${cart.length} Items`}
+                </div>
+                <div style={{
+                  fontSize: "20px", fontWeight: "800",
+                  color: cart.length > 0 ? lt.accent : lt.textMuted,
+                  letterSpacing: "-0.5px",
+                }}>
+                  ₹{getTotal().toFixed(2)}
+                </div>
+              </div>
+            </div>
+          </div>
 
-  {/* MAIN CARD — cart table + payments */}
-  <div style={{ maxWidth: "100%", width: "90%", ...cardStyle }}>
-    <h3 style={{ marginBottom: "15px" }}>Purchase Invoice</h3>
-
-    {/* CART TABLE starts here, no Order Summary inside */}
-    <div style={{ maxHeight: "260px", overflowY: "auto", marginBottom: "15px",
-              border: "1px solid #eee", borderRadius: "8px"
+          {/* CART TABLE */}
+          <div style={{
+            maxHeight: "300px", overflowY: "auto", marginBottom: "14px",
+            border: `1px solid ${lt.cardBorder}`, borderRadius: "14px",
+            background: lt.surface,
+          }}>
+            {/* HEADER */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 1.5fr 1fr",
+              gap: "8px", padding: "12px 14px",
+              fontWeight: "800", fontSize: "11px", letterSpacing: "0.6px",
+              textTransform: "uppercase", color: lt.textMuted,
+              background: lt.card, borderBottom: `1px solid ${lt.cardBorder}`,
+              borderRadius: "14px 14px 0 0", position: "sticky", top: 0, zIndex: 1,
             }}>
-              {/* HEADER */}
-              {/* UPDATE gridTemplateColumns to add a 0.8fr column for Unit */}
-<div style={{
-  display: "grid",
-  gridTemplateColumns: "2fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 1.5fr 1fr", // Added 0.8fr
-  gap: "8px", padding: "10px 12px",
-  fontWeight: "600", background: "#f9f9f9",
-  borderBottom: "1px solid #eee"
-}}>
-  <div style={{ textAlign: "left" }}>Product</div>
-  <div style={{ textAlign: "center" }}>Unit</div> {/* NEW COLUMN */}
-  <div style={{ textAlign: "center" }}>HSN</div>
-  <div style={{ textAlign: "center" }}>GST%</div>
-  <div style={{ textAlign: "center" }}>Qty</div>
-  <div style={{ textAlign: "right" }}>Price</div>
-  <div style={{ textAlign: "center" }}>Discount</div>
-  <div style={{ textAlign: "right", paddingRight: "12px" }}>Total</div>
-</div>
-
-              {cart.length === 0 && (
-                <div style={{ padding: "15px", textAlign: "center", color: "#999" }}>
-                  No items added
-                </div>
-              )}
-
-              {/* ROWS */}
-              {cart.map((item, i) => (
-  <div
-    key={i}
-    style={{
-      display: "grid",
-      gridTemplateColumns: "2fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 1.5fr 1fr", // Match the header
-      alignItems: "center",
-      gap: "8px", padding: "10px 12px",
-      borderBottom: "1px solid #f0f0f0"
-    }}
-  >
-    <div style={{ textAlign: "left" }}>{item.name}</div>
-    
-    {/* --- NEW UNIT DATA --- */}
-    <div style={{ textAlign: "center", fontSize: "12px", fontWeight: "500", color: "#6d28d9" }}>
-      {item.unit_type || "unit"}
-    </div>
-
-                  {/* HSN */}
-                  <div style={{ textAlign: "center", fontSize: "13px", color: "#666" }}>
-                    {item.hsn_code || "-"}
-                  </div>
-
-                  {/* GST% */}
-                  <div style={{ textAlign: "center", fontSize: "13px", color: "#666" }}>
-                    {item.tax_rate || 0}%
-                  </div>
-
-                  {/* QTY */}
-                  <div style={{ textAlign: "center" }}>
-                    <input
-                      type="number"
-                      value={item.quantity}
-                      min="1"
-                      onChange={(e) => {
-                        const newQty = Number(e.target.value);
-                        setCart(cart.map(p =>
-                          p.id === item.id ? { ...p, quantity: newQty, total: newQty * p.price } : p
-                        ));
-                      }}
-                      style={{
-                        width: "50px", padding: "4px", textAlign: "center",
-                        borderRadius: "6px", border: "1px solid #ddd"
-                      }}
-                    />
-                  </div>
-
-                  {/* PRICE */}
-                  <div style={{ textAlign: "right" }}>₹{item.price}</div>
-
-                  {/* DISCOUNT */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
-                    <input
-                      type="number"
-                      value={item.discountPercent || ""}
-                      placeholder="%"
-                      onChange={(e) => handleDiscountPercent(i, Number(e.target.value) || 0)}
-                      style={{ width: "55px", padding: "4px", border: "1px solid #ddd", borderRadius: "4px", textAlign: "center" }}
-                    />
-                    <input
-                      type="number"
-                      value={item.discountAmount || ""}
-                      placeholder="₹"
-                      onChange={(e) => handleDiscountAmount(i, Number(e.target.value) || 0)}
-                      style={{ width: "55px", padding: "4px", border: "1px solid #ddd", borderRadius: "4px", textAlign: "center" }}
-                    />
-                  </div>
-
-                  {/* TOTAL + DELETE in same cell */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", paddingRight: "12px" }}>
-                    <span style={{ fontWeight: "500" }}>₹{item.total}</span>
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      style={{ border: "none", background: "transparent", color: "#e53935", cursor: "pointer", fontSize: "16px", padding: "0" }}
-                    >✖</button>
-                  </div>
-
-                </div>
-              ))}
+              <div>Product</div>
+              <div style={{ textAlign: "center" }}>Unit</div>
+              <div style={{ textAlign: "center" }}>HSN</div>
+              <div style={{ textAlign: "center" }}>GST%</div>
+              <div style={{ textAlign: "center" }}>Qty</div>
+              <div style={{ textAlign: "right" }}>Price</div>
+              <div style={{ textAlign: "center" }}>Discount</div>
+              <div style={{ textAlign: "right", paddingRight: "12px" }}>Total</div>
             </div>
 
-            {/* GST SUMMARY */}
-            {(() => {
-              const subtotal = cart.reduce((sum, item) => {
-                const base = item.total / (1 + (item.tax_rate || 0) / 100);
-                return sum + base;
-              }, 0);
-              const gstAmount = getTotal() - subtotal;
-              return (
-                <div style={{ marginBottom: "10px", fontSize: "14px", color: "#555" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>Subtotal (before GST)</span>
-                    <span>₹{subtotal.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>GST</span>
-                    <span>₹{gstAmount.toFixed(2)}</span>
-                  </div>
+            {cart.length === 0 && (
+              <div style={{ padding: "32px", textAlign: "center", color: lt.textMuted, fontSize: "14px" }}>
+                No items added yet
+              </div>
+            )}
+
+            {cart.map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "2fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr 1.5fr 1fr",
+                  alignItems: "center", gap: "8px", padding: "10px 14px",
+                  borderBottom: `1px solid ${lt.cardBorder}`,
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = lt.rowHover)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div style={{ textAlign: "left", color: lt.textPrimary, fontWeight: "600", fontSize: "13px" }}>
+                  {item.name}
                 </div>
-              );
-            })()}
 
-            {/* TOTAL */}
-            <div style={{ fontSize: "18px", fontWeight: "600", marginBottom: "10px" }}>
-              Total: ₹{getTotal()}
-            </div>
+                <div style={{
+                  textAlign: "center", fontSize: "11px", fontWeight: "700",
+                  color: lt.accent, textTransform: "capitalize",
+                }}>
+                  {item.unit_type || "unit"}
+                </div>
 
-            {/* PAYMENTS */}
-<div style={{ marginBottom: "12px" }}>
-  <div style={{ fontWeight: "600", color: "#333", marginBottom: "8px" }}>Payments</div>
+                <div style={{ textAlign: "center", fontSize: "12px", color: lt.textMuted }}>
+                  {item.hsn_code || "-"}
+                </div>
 
-  {payments.map((payment, index) => (
-    <div key={index} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-      <div style={{ position: "relative", display: "inline-block" }}>
-        <select
-          value={payment.mode}
-          onChange={(e) => updatePayment(index, "mode", e.target.value)}
-          style={{
-            width: "160px", padding: "10px 30px 10px 12px",
-            borderRadius: "8px", border: "1px solid #ddd",
-            appearance: "none", background: "#fff"
-          }}
-        >
-          {paymentOptions.map(option => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-        <span style={{
-          position: "absolute", right: "12px", top: "50%",
-          transform: "translateY(-50%)", pointerEvents: "none", fontSize: "10px"
-        }}>▼</span>
-      </div>
+                <div style={{ textAlign: "center", fontSize: "12px", color: lt.textMuted }}>
+                  {item.tax_rate || 0}%
+                </div>
 
-      <input
-        type="number"
-        min="0"
-        value={payment.amount}
-        onChange={(e) => updatePayment(index, "amount", e.target.value)}
-        style={{
-          width: "120px", padding: "8px", borderRadius: "6px",
-          border: "1px solid #ccc", textAlign: "right", marginTop: "4px"
-        }}
-      />
+                <div style={{ textAlign: "center" }}>
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    min="1"
+                    onChange={(e) => {
+                      const newQty = Number(e.target.value);
+                      setCart(cart.map(p =>
+                        p.id === item.id ? { ...p, quantity: newQty, total: newQty * p.price } : p
+                      ));
+                    }}
+                    style={{
+                      width: "50px", padding: "5px", textAlign: "center",
+                      borderRadius: "6px", border: `1px solid ${lt.surfaceBorder}`,
+                      background: "#fff", color: lt.textPrimary, fontSize: "13px",
+                    }}
+                  />
+                </div>
 
-      <button
-        onClick={() => removePaymentRow(index)}
-        disabled={payments.length === 1}
-        style={{
-          border: "none", background: "transparent",
-          color: payments.length === 1 ? "#bbb" : "#e53935",
-          cursor: payments.length === 1 ? "not-allowed" : "pointer",
-          fontSize: "16px", padding: "4px", lineHeight: "1"
-        }}
-      >✖</button>
-    </div>
-  ))}
+                <div style={{ textAlign: "right", color: lt.textSecondary, fontSize: "13px", fontWeight: "600" }}>
+                  ₹{item.price}
+                </div>
 
-  <button
-    onClick={addPaymentRow}
-    style={{
-      padding: "8px 12px", borderRadius: "8px",
-      border: "1px solid #7c3aed", background: "#fff",
-      color: "#7c3aed", cursor: "pointer", fontWeight: "500", marginTop: "2px"
-    }}
-  >+ Add Payment Method</button>
-</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
+                  <input
+                    type="number"
+                    value={item.discountPercent || ""}
+                    placeholder="%"
+                    onChange={(e) => handleDiscountPercent(i, Number(e.target.value) || 0)}
+                    style={{
+                      width: "52px", padding: "4px 6px", border: `1px solid ${lt.surfaceBorder}`,
+                      borderRadius: "6px", textAlign: "center", background: "#fff",
+                      color: lt.textPrimary, fontSize: "12px",
+                    }}
+                  />
+                  <input
+                    type="number"
+                    value={item.discountAmount || ""}
+                    placeholder="₹"
+                    onChange={(e) => handleDiscountAmount(i, Number(e.target.value) || 0)}
+                    style={{
+                      width: "52px", padding: "4px 6px", border: `1px solid ${lt.surfaceBorder}`,
+                      borderRadius: "6px", textAlign: "center", background: "#fff",
+                      color: lt.textPrimary, fontSize: "12px",
+                    }}
+                  />
+                </div>
 
-{/* PAID & BALANCE */}
-<div style={{ marginBottom: "15px", fontWeight: "600" }}>
-  <div style={{ color: "#2e7d32", marginBottom: "4px" }}>
-    Paid: ₹{totalPaid.toLocaleString("en-IN")}
-  </div>
-  <div style={{ color: balance > 0 ? "#d32f2f" : "#2e7d32" }}>
-    Balance: ₹{balance.toLocaleString("en-IN")}
-  </div>
-</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", paddingRight: "10px" }}>
+                  <span style={{ fontWeight: "700", color: lt.textPrimary, fontSize: "13px" }}>
+                    ₹{item.total}
+                  </span>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    style={{
+                      border: "none", background: "transparent", color: lt.red,
+                      cursor: "pointer", fontSize: "15px", padding: "2px", lineHeight: "1",
+                    }}
+                  >
+                    ✖
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
 
-            {/* SAVE */}
-            <button
-              onClick={savePurchase}
-              style={{
-                width: "100%", padding: "12px",
-                background: "#7c3aed", color: "#fff",
-                border: "none", borderRadius: "8px", cursor: "pointer",
-                fontWeight: "600", fontSize: "15px"
-              }}
-            >
-              Save Purchase
+          {/* GST SUMMARY */}
+          {(() => {
+            const subtotal = cart.reduce((sum, item) => {
+              const base = item.total / (1 + (item.tax_rate || 0) / 100);
+              return sum + base;
+            }, 0);
+            const gstAmount = getTotal() - subtotal;
+            return (
+              <div style={{
+                marginBottom: "12px", padding: "10px 14px",
+                background: lt.surface, borderRadius: "10px",
+                border: `1px solid ${lt.surfaceBorder}`,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: lt.textSecondary, marginBottom: "4px" }}>
+                  <span>Subtotal (before GST)</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: lt.textSecondary }}>
+                  <span>GST</span>
+                  <span>₹{gstAmount.toFixed(2)}</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* TOTAL */}
+          <div style={{
+            fontSize: "18px", fontWeight: "800", marginBottom: "14px",
+            padding: "12px 16px", background: lt.accentSoft, borderRadius: "12px",
+            border: `1px solid ${lt.accentBorder}`, display: "flex",
+            alignItems: "center", justifyContent: "space-between", color: lt.textPrimary,
+          }}>
+            <span style={{ fontSize: "14px", fontWeight: "700", color: lt.textSecondary }}>
+              TOTAL AMOUNT
+            </span>
+            <span style={{ color: lt.accent }}>₹{getTotal().toFixed(2)}</span>
+          </div>
+
+          {/* PAYMENTS */}
+          <div style={{ marginBottom: "14px" }}>
+            <div style={sectionHeader}>💳 Payments</div>
+
+            {payments.map((payment, index) => (
+              <div key={index} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                <div style={{ position: "relative", flex: "0 0 160px" }}>
+                  <select
+                    value={payment.mode}
+                    onChange={(e) => updatePayment(index, "mode", e.target.value)}
+                    style={{ ...selectStyle, width: "100%", paddingRight: "28px" }}
+                    onFocus={onFocusStyle}
+                    onBlur={onBlurStyle}
+                  >
+                    {paymentOptions.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <span style={{
+                    position: "absolute", right: "10px", top: "50%",
+                    transform: "translateY(-50%)", pointerEvents: "none",
+                    color: lt.textMuted, fontSize: "10px",
+                  }}>▼</span>
+                </div>
+
+                <input
+                  type="number"
+                  min="0"
+                  value={payment.amount}
+                  onChange={(e) => updatePayment(index, "amount", e.target.value)}
+                  style={{
+                    ...inputStyle, flex: 1, textAlign: "right",
+                    fontWeight: "700", fontSize: "15px",
+                  }}
+                  onFocus={onFocusStyle}
+                  onBlur={onBlurStyle}
+                />
+
+                <button
+                  onClick={() => removePaymentRow(index)}
+                  disabled={payments.length === 1}
+                  style={{
+                    border: "none", background: "transparent",
+                    color: payments.length === 1 ? lt.textMuted : lt.red,
+                    cursor: payments.length === 1 ? "not-allowed" : "pointer",
+                    fontSize: "16px", padding: "4px",
+                    opacity: payments.length === 1 ? 0.4 : 1,
+                  }}
+                >
+                  ✖
+                </button>
+              </div>
+            ))}
+
+            <button onClick={addPaymentRow} style={ghostButtonStyle}>
+              + Add Payment Method
             </button>
           </div>
+
+          {/* PAID & BALANCE */}
+          <div style={{
+            marginBottom: "16px", padding: "12px 16px",
+            background: lt.surface, borderRadius: "12px",
+            border: `1px solid ${lt.surfaceBorder}`,
+            display: "flex", justifyContent: "space-between",
+          }}>
+            <div style={{ fontWeight: "800", color: lt.green, fontSize: "14px" }}>
+              ✓ Paid: ₹{totalPaid.toLocaleString("en-IN")}
+            </div>
+            <div style={{
+              fontWeight: "800", fontSize: "14px",
+              color: balance > 0 ? lt.red : lt.green,
+            }}>
+              {balance > 0 ? "⚠ Balance:" : "✓ Settled:"} ₹{Math.abs(balance).toLocaleString("en-IN")}
+            </div>
+          </div>
+
+          {/* SAVE */}
+          <button
+            onClick={savePurchase}
+            style={{
+              ...primaryButtonStyle, width: "100%", padding: "14px 24px",
+              fontSize: "16px", letterSpacing: "0.5px", borderRadius: "14px",
+              boxShadow: "0 8px 24px rgba(124,109,242,0.4)",
+            }}
+          >
+            💾 Save Purchase
+          </button>
         </div>
       </div>
 
       {/* CREATE SUPPLIER MODAL */}
       {showSupplierModal && (
-        <div
-          onClick={() => setShowSupplierModal(false)}
-          style={{
-            position: "fixed", top: 0, left: 0,
-            width: "100%", height: "100%",
-            background: "rgba(0,0,0,0.4)",
-            display: "flex", justifyContent: "center", alignItems: "center",
-            zIndex: 2000
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "400px", background: "#fff",
-              borderRadius: "12px", padding: "25px 20px",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
-            }}
-          >
-            <h3 style={{ marginBottom: "15px" }}>Create New Supplier</h3>
+        <div onClick={() => setShowSupplierModal(false)} style={modalOverlay}>
+          <div onClick={(e) => e.stopPropagation()} style={{ ...modalCard, width: "440px" }}>
+
+            <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{
+                width: "32px", height: "32px", borderRadius: "10px",
+                background: lt.accentGradient,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "16px",
+              }}>🏢</div>
+              <h3 style={{ margin: 0, color: lt.textPrimary, fontWeight: "800", fontSize: "17px" }}>
+                Create New Supplier
+              </h3>
+            </div>
 
             {/* NAME */}
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontWeight: "500" }}>Supplier Name *</label>
+            <div style={{ marginBottom: "14px" }}>
+              <label style={fieldLabel}>Supplier Name *</label>
               <input
                 type="text"
                 value={newSupplierName}
                 onChange={(e) => setNewSupplierName(e.target.value)}
                 placeholder="Enter name"
                 style={{
-                  width: "100%", padding: "10px", marginTop: "5px",
-                  borderRadius: "6px", boxSizing: "border-box",
-                  border: errors.name ? "1px solid red" : "1px solid #ddd"
+                  ...inputStyle, width: "100%", boxSizing: "border-box",
+                  borderColor: errors.name ? lt.red : lt.surfaceBorder,
                 }}
+                onFocus={onFocusStyle}
+                onBlur={onBlurStyle}
               />
             </div>
 
             {/* PHONE */}
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontWeight: "500" }}>Mobile Number *</label>
+            <div style={{ marginBottom: "14px" }}>
+              <label style={fieldLabel}>Mobile Number *</label>
               <input
                 type="tel"
-                placeholder="Mobile Number"
+                placeholder="10-digit mobile number"
                 value={newSupplierPhone}
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, "");
                   if (value.length <= 10) setNewSupplierPhone(value);
                 }}
                 style={{
-                  width: "100%", padding: "10px", borderRadius: "6px",
-                  boxSizing: "border-box",
-                  border: errors.phone ? "1px solid red" : "1px solid #ddd"
+                  ...inputStyle, width: "100%", boxSizing: "border-box",
+                  borderColor: errors.phone ? lt.red : lt.surfaceBorder,
                 }}
+                onFocus={onFocusStyle}
+                onBlur={onBlurStyle}
               />
               {newSupplierPhone && newSupplierPhone.length !== 10 && (
-                <div style={{ color: "red", fontSize: "12px", marginTop: "4px" }}>
-                  Enter 10 digit mobile number
+                <div style={{ color: lt.red, fontSize: "12px", marginTop: "5px" }}>
+                  Enter 10-digit mobile number
                 </div>
               )}
             </div>
 
             {/* ADDRESS */}
-            <div style={{ marginTop: "10px" }}>
-              <div style={{ fontSize: "13px", fontWeight: "600", marginBottom: "5px" }}>
-                BILLING ADDRESS
-              </div>
+            <div style={{
+              marginTop: "16px", padding: "14px",
+              background: lt.surface, borderRadius: "12px",
+              border: `1px solid ${lt.surfaceBorder}`,
+            }}>
+              <div style={{ ...sectionHeader, marginBottom: "12px" }}>📍 Billing Address</div>
+
               <textarea
                 placeholder="Enter billing address"
                 value={supplierAddress}
                 onChange={(e) => setSupplierAddress(e.target.value)}
                 style={{
-                  width: "100%", padding: "10px", borderRadius: "6px",
-                  border: "1px solid #ddd", resize: "none", boxSizing: "border-box"
+                  ...inputStyle, width: "100%", boxSizing: "border-box",
+                  resize: "none", minHeight: "60px", marginBottom: "10px",
                 }}
+                onFocus={onFocusStyle}
+                onBlur={onBlurStyle}
               />
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "10px", width: "100%" }}>
-                <select
-                  value={supplierState}
-                  onChange={(e) => setSupplierState(e.target.value)}
-                  style={{
-                    flex: "0 0 60%", padding: "10px",
-                    borderRadius: "6px", border: "1px solid #ddd", minWidth: "0"
-                  }}
-                >
-                  <option value="">Select State</option>
-                  {indianStates.map((state, i) => (
-                    <option key={i} value={state}>{state}</option>
-                  ))}
-                </select>
+              <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+                <div style={{ position: "relative", flex: "0 0 60%" }}>
+                  <select
+                    value={supplierState}
+                    onChange={(e) => setSupplierState(e.target.value)}
+                    style={{ ...selectStyle, width: "100%", paddingRight: "28px" }}
+                    onFocus={onFocusStyle}
+                    onBlur={onBlurStyle}
+                  >
+                    <option value="">Select State</option>
+                    {indianStates.map((state, i) => (
+                      <option key={i} value={state}>{state}</option>
+                    ))}
+                  </select>
+                  <span style={{
+                    position: "absolute", right: "10px", top: "50%",
+                    transform: "translateY(-50%)", pointerEvents: "none",
+                    color: lt.textMuted, fontSize: "10px",
+                  }}>▼</span>
+                </div>
 
                 <input
                   type="number"
                   placeholder="Pincode"
                   value={supplierPincode}
                   onChange={(e) => setSupplierPincode(e.target.value)}
-                  style={{ width: "120px", padding: "10px", borderRadius: "6px", border: "1px solid #ddd" }}
+                  style={{ ...inputStyle, flex: 1 }}
+                  onFocus={onFocusStyle}
+                  onBlur={onBlurStyle}
                 />
               </div>
 
@@ -1029,10 +1284,9 @@ const res = await api.createPurchaseInvoice({
                 placeholder="City"
                 value={supplierCity}
                 onChange={(e) => setSupplierCity(e.target.value)}
-                style={{
-                  width: "100%", padding: "10px", borderRadius: "6px",
-                  border: "1px solid #ddd", marginTop: "10px", boxSizing: "border-box"
-                }}
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                onFocus={onFocusStyle}
+                onBlur={onBlurStyle}
               />
             </div>
 
@@ -1044,10 +1298,7 @@ const res = await api.createPurchaseInvoice({
                   setNewSupplierName("");
                   setNewSupplierPhone("");
                 }}
-                style={{
-                  padding: "8px 14px", borderRadius: "6px",
-                  border: "1px solid #ccc", background: "#f5f5f5", cursor: "pointer"
-                }}
+                style={ghostButtonStyle}
               >
                 Cancel
               </button>
@@ -1056,12 +1307,12 @@ const res = await api.createPurchaseInvoice({
                 onClick={saveSupplier}
                 disabled={!isFormValid}
                 style={{
-                  padding: "8px 14px", borderRadius: "6px", border: "none",
-                  background: isFormValid ? "#7c3aed" : "#ccc",
-                  color: "#fff", cursor: isFormValid ? "pointer" : "not-allowed"
+                  ...primaryButtonStyle,
+                  opacity: isFormValid ? 1 : 0.45,
+                  cursor: isFormValid ? "pointer" : "not-allowed",
                 }}
               >
-                Save
+                Save Supplier
               </button>
             </div>
           </div>
