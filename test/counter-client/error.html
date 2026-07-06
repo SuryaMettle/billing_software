@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Connection Error</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f1f33 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 40px 48px;
+      width: 440px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+    }
+    .card h1 {
+      font-size: 20px;
+      color: #c0392b;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+    .url {
+      font-family: monospace;
+      font-size: 13px;
+      color: #1e3a5f;
+      background: #f0f3f6;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin: 16px 0 24px;
+      word-break: break-all;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      flex: 1;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    button:hover { opacity: 0.85; }
+    .retry { background: #1e3a5f; color: #fff; }
+    .change { background: #f0f3f6; color: #1e3a5f; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⚠️</div>
+    <h1>Can't reach the shop server</h1>
+    <p>Make sure the server PC is turned on and connected to the same WiFi/network.</p>
+    <div class="url" id="serverUrl">—</div>
+    <div class="btn-row">
+      <button class="retry" id="retryBtn">Retry</button>
+      <button class="change" id="changeBtn">Change Server IP</button>
+    </div>
+  </div>
+
+  <script>
+    if (window.counterClient && window.counterClient.onConnectionError) {
+      window.counterClient.onConnectionError((url) => {
+        document.getElementById('serverUrl').textContent = url || 'Unknown address';
+      });
+    }
+
+    document.getElementById('retryBtn').addEventListener('click', () => {
+      window.counterClient.retryConnection();
+    });
+
+    document.getElementById('changeBtn').addEventListener('click', () => {
+      window.counterClient.openSetup();
+    });
+  </script>
+</body>
+</html>

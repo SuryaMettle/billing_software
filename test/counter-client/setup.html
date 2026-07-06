@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Setup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f1f33 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 40px 48px;
+      width: 420px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .card h1 {
+      font-size: 22px;
+      color: #1e3a5f;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .input-row {
+      display: flex;
+      align-items: center;
+      border: 2px solid #d0d7de;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .input-row span {
+      background: #f0f3f6;
+      padding: 12px 10px;
+      font-size: 15px;
+      color: #555;
+      border-right: 1px solid #d0d7de;
+      white-space: nowrap;
+    }
+    .input-row input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 12px 10px;
+      font-size: 15px;
+      width: 100%;
+    }
+    .hint {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      background: #1e3a5f;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    button:hover { background: #16304f; }
+    button:active { background: #102338; }
+    .error {
+      color: #c0392b;
+      font-size: 13px;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Connect to Shop Server</h1>
+    <p>Enter the server PC's IPv4 address shown in its Network settings.</p>
+    <div class="input-row">
+      <span>http://</span>
+      <input id="ip" type="text" placeholder="192.168.0.127" />
+      <span>:3001</span>
+    </div>
+    <div class="hint">Example: 192.168.0.127</div>
+    <button id="connectBtn">Connect</button>
+    <div class="error" id="error"></div>
+  </div>
+
+  <script>
+    const ipInput = document.getElementById('ip');
+    const connectBtn = document.getElementById('connectBtn');
+    const errorEl = document.getElementById('error');
+
+    // Prefill with previous IP if available
+    if (window.counterClient && window.counterClient.onPrefillIp) {
+      window.counterClient.onPrefillIp((url) => {
+        const match = url.match(/https?:\/\/([^:/]+)/);
+        if (match) ipInput.value = match[1];
+      });
+    }
+
+    function isValidIp(ip) {
+      const parts = ip.trim().split('.');
+      if (parts.length !== 4) return false;
+      return parts.every(p => /^\d{1,3}$/.test(p) && Number(p) >= 0 && Number(p) <= 255);
+    }
+
+    connectBtn.addEventListener('click', () => {
+      const ip = ipInput.value.trim();
+      if (!isValidIp(ip)) {
+        errorEl.textContent = 'Please enter a valid IPv4 address (e.g. 192.168.0.127)';
+        return;
+      }
+      errorEl.textContent = '';
+      const serverUrl = 'http://' + ip + ':3001';
+      window.counterClient.saveServerUrl(serverUrl);
+    });
+
+    ipInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') connectBtn.click();
+    });
+
+    ipInput.focus();
+  </script>
+</body>
+</html>
